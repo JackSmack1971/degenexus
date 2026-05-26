@@ -68,6 +68,7 @@ class ExecutionAgent(BaseAgent):
             signal_id=effective_proposal.signal_id,
             symbol=effective_proposal.symbol,
             direction=Direction(effective_proposal.direction),
+            state=TradeState.CEO_APPROVED,
             order_type=OrderType(order_type_str),
             entry_price=effective_proposal.entry_price,
             fill_price=fill_price,
@@ -86,7 +87,6 @@ class ExecutionAgent(BaseAgent):
             },
         )
 
-        trade = self.lifecycle.transition(trade, TradeState.CEO_APPROVED)
         trade = self.lifecycle.transition(trade, TradeState.QUEUED)
         trade = self.lifecycle.open_trade(trade, fill_price, slippage_pct)
 
