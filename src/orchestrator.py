@@ -185,6 +185,8 @@ class TradingOrchestrator:
             portfolio_value=self.portfolio.total_value,
             open_positions_count=self.portfolio.open_positions_count,
             total_exposure_usd=self.portfolio.total_exposure_usd,
+            consecutive_losses=self.portfolio.consecutive_losses,
+            signal_confidence=signal.confidence,
         )
         if violations:
             risk_decision = self.risk_gate.build_rejection(proposal, violations)

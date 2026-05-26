@@ -69,6 +69,8 @@ class RiskGate:
         portfolio_value: float,
         open_positions_count: int,
         total_exposure_usd: float,
+        consecutive_losses: int = 0,
+        signal_confidence: float = 1.0,
     ) -> list[str]:
         """
         Run all hard rules against the proposal.
@@ -116,6 +118,24 @@ class RiskGate:
             violations.append(
                 f"EXPOSURE_LIMIT: projected {projected_exposure/portfolio_value:.1%} "
                 f"> limit {self.limits.max_total_exposure_pct:.1%}"
+            )
+
+        if proposal.risk_reward_ratio < self.limits.min_risk_reward:
+            violations.append(
+                f"RISK_REWARD_BELOW_MIN: {proposal.risk_reward_ratio:.2f} "
+                f"< {self.limits.min_risk_reward:.2f}"
+            )
+
+        if signal_confidence < self.limits.min_confidence:
+            violations.append(
+                f"CONFIDENCE_BELOW_MIN: {signal_confidence:.2f} "
+                f"< {self.limits.min_confidence:.2f}"
+            )
+
+        if consecutive_losses >= self.limits.max_consecutive_losses:
+            violations.append(
+                f"CONSECUTIVE_LOSS_LIMIT: {consecutive_losses} "
+                f">= {self.limits.max_consecutive_losses}"
             )
 
         if proposal.stop_loss <= 0 or proposal.take_profit <= 0:
