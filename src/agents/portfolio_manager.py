@@ -10,6 +10,7 @@ from ..core.portfolio import Portfolio
 from ..core.trade_lifecycle import TradeLifecycle
 from ..models.trade import Trade, Position, TradeState, CloseReason, Direction
 from ..data.market_feed import MarketFeed
+from ..memory.trade_store import TradeStore
 
 logger = logging.getLogger(__name__)
 
@@ -21,15 +22,23 @@ class PortfolioManagerAgent(BaseAgent):
         portfolio: Portfolio,
         performance_context: str = "",
         event_callback: Optional[Callable] = None,
+        trade_store: Optional[TradeStore] = None,
     ) -> None:
         super().__init__("PORTFOLIO_MANAGER", performance_context)
         self.portfolio = portfolio
         self.lifecycle = TradeLifecycle()
         self.feed = MarketFeed()
         self._event_callback = event_callback or (lambda etype, content: None)
+        self._trade_store = trade_store
         self._open_trades: dict[str, Trade] = {}
         self._trade_to_position: dict[str, str] = {}
-        self._partial_tp_flags: set[str] = set()
+        # Seed from DB so restart doesn't re-trigger partial TP on surviving trades
+        if trade_store is not None:
+            self._partial_tp_flags: set[str] = set(
+                trade_store.get_partially_closed_trade_ids()
+            )
+        else:
+            self._partial_tp_flags = set()
 
     def _emit(self, event_type: str, content: str) -> None:
         self._event_callback(event_type, content)
@@ -154,6 +163,8 @@ class PortfolioManagerAgent(BaseAgent):
         self.lifecycle.transition(trade, TradeState.PARTIALLY_CLOSED)
         trade.partial_pnl += pnl
         trade.shares -= shares_to_close
+        if self._trade_store is not None:
+            self._trade_store.upsert_trade(trade)
         self._emit(
             "PARTIAL_TP",
             f"{trade.symbol}: closed {shares_to_close}/{trade.shares + shares_to_close} shares "

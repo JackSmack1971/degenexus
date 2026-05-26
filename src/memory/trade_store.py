@@ -163,6 +163,14 @@ class TradeStore:
                 "created_at": trade.created_at.isoformat(),
             })
 
+    def get_partially_closed_trade_ids(self) -> list[str]:
+        """Return trade_ids of all trades currently in PARTIALLY_CLOSED state."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT trade_id FROM trades WHERE state='PARTIALLY_CLOSED'"
+            ).fetchall()
+            return [r["trade_id"] for r in rows]
+
     def get_closed_trades(self, limit: int = 100) -> list[dict]:
         with self._connect() as conn:
             rows = conn.execute(
