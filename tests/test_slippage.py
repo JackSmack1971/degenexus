@@ -24,9 +24,9 @@ class TestSlippageModel:
 
     def test_larger_order_has_higher_impact(self):
         model = SlippageModel(seed=42)
-        _, slip_small = model.compute(1_000.0, "LONG")
+        _, slip_small = model.compute(1_000.0)
         model2 = SlippageModel(seed=42)
-        _, slip_large = model2.compute(1_000_000.0, "LONG")
+        _, slip_large = model2.compute(1_000_000.0)
         assert slip_large > slip_small
 
     def test_zero_price_does_not_crash(self):
@@ -41,7 +41,7 @@ class TestSlippageModel:
             noise_std=0.0001,
             seed=99,
         )
-        total_pct, _ = model.compute(10_000.0, "LONG")
+        total_pct, _ = model.compute(10_000.0)
         assert 0.0005 < total_pct < 0.005
 
     def test_fill_price_rounded_to_4dp(self):

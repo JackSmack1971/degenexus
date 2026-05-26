@@ -29,11 +29,11 @@ class SlippageModel:
     def compute(
         self,
         order_value_usd: float,
-        direction: str,
     ) -> tuple[float, float]:
         """
         Returns (slippage_pct, slippage_usd).
         Positive slippage_pct = you paid more (LONG buy) or received less (SHORT sell).
+        Direction of price impact is applied by the caller (apply_to_price).
         """
         spread = self.base_spread_pct
         impact = order_value_usd * self.impact_per_million / 1_000_000
@@ -55,7 +55,7 @@ class SlippageModel:
         For LONG: fill_price > requested (you buy higher).
         For SHORT: fill_price < requested (you sell lower).
         """
-        slippage_pct, _ = self.compute(order_value_usd, direction)
+        slippage_pct, _ = self.compute(order_value_usd)
 
         if direction == "LONG":
             fill_price = price * (1 + slippage_pct)
