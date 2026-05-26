@@ -223,7 +223,7 @@ class TradingOrchestrator:
                     proposal=proposal,
                     consecutive_losses=self.portfolio.consecutive_losses,
                     signal_confidence=signal.confidence,
-                    open_positions_summary=f"CEO challenge context: {signal.reasoning}",
+                    open_positions_summary=open_summary,
                 )
                 self.trade_store.resolve_challenge(challenge_id, risk_decision.approved)
                 if risk_decision.approved:
