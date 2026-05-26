@@ -111,14 +111,15 @@ class TradeLifecycle:
     ) -> bool:
         """
         Returns True if partial TP should trigger (price reached 1.5× risk distance).
-        Only fires once per trade.
+        Only fires once per trade (dedup via _partial_tp_flags in caller).
         """
         if trade.state != TradeState.OPEN:
             return False
-        if hasattr(trade, "_partial_tp_triggered") and trade._partial_tp_triggered:
-            return False
 
         risk_distance = abs(trade.fill_price - trade.stop_loss)
+        if risk_distance == 0:
+            return False
+
         partial_tp_level = trade.fill_price + 1.5 * risk_distance
 
         if trade.direction == Direction.LONG and current_price >= partial_tp_level:

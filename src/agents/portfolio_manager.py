@@ -135,6 +135,15 @@ class PortfolioManagerAgent(BaseAgent):
         position_id: Optional[str],
     ) -> None:
         shares_to_close = max(1, trade.shares // 2)
+
+        # Guard: skip if partial close would be a full close — let TP/SL handle it
+        if shares_to_close >= trade.shares:
+            logger.info(
+                "PM: PARTIAL_TP skipped for %s — shares_to_close=%d >= trade.shares=%d; delegating to TP/SL",
+                trade.symbol, shares_to_close, trade.shares,
+            )
+            return
+
         pnl = 0.0
         if position_id:
             pnl = self.portfolio.partial_close_position(position_id, current_price, shares_to_close)
