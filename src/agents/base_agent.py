@@ -53,6 +53,7 @@ class BaseAgent:
         and client is the corresponding SDK object (or None for fallback).
         """
         settings = Settings()
+        self._llm_timeout_seconds = settings.llm_timeout_seconds
         provider = settings.llm_provider.lower().strip()
 
         if provider == "openrouter":
@@ -67,7 +68,10 @@ class BaseAgent:
             return "fallback", None
         try:
             import anthropic
-            return "anthropic", anthropic.Anthropic(api_key=api_key.get_secret_value())
+            return "anthropic", anthropic.Anthropic(
+                api_key=api_key.get_secret_value(),
+                timeout=self._llm_timeout_seconds,
+            )
         except ImportError:
             logger.error("anthropic package not installed")
             return "fallback", None
@@ -89,6 +93,7 @@ class BaseAgent:
             client = OpenRouterClient(
                 api_key=api_key.get_secret_value(),
                 model=model,
+                timeout=self._llm_timeout_seconds,
             )
             logger.info("%s: using OpenRouter model=%s", self.agent_id, client.model)
             return "openrouter", client
