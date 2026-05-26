@@ -143,6 +143,13 @@ class TradingOrchestrator:
         open_count = self.portfolio.open_positions_count
         selected = []
         for signal in signals[:3]:
+            if signal.data_quality.value != "LIVE":
+                self._emit(
+                    "CEO_REJECTED_SIGNAL",
+                    "CEO",
+                    f"{signal.symbol} signal rejected at triage due to {signal.data_quality.value} data quality",
+                )
+                continue
             decision = self.ceo.triage_signal(signal, open_count)
             if decision == "PROCEED":
                 selected.append(signal)
@@ -185,6 +192,8 @@ class TradingOrchestrator:
             portfolio_value=self.portfolio.total_value,
             open_positions_count=self.portfolio.open_positions_count,
             total_exposure_usd=self.portfolio.total_exposure_usd,
+            consecutive_losses=self.portfolio.consecutive_losses,
+            signal_confidence=signal.confidence,
         )
         if violations:
             risk_decision = self.risk_gate.build_rejection(proposal, violations)
@@ -223,7 +232,7 @@ class TradingOrchestrator:
                     proposal=proposal,
                     consecutive_losses=self.portfolio.consecutive_losses,
                     signal_confidence=signal.confidence,
-                    open_positions_summary=f"CEO challenge context: {signal.reasoning}",
+                    open_positions_summary=open_summary,
                 )
                 self.trade_store.resolve_challenge(challenge_id, risk_decision.approved)
                 if risk_decision.approved:

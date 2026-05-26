@@ -73,9 +73,12 @@ class RiskManagerAgent(BaseAgent):
         signal_confidence: float,
         open_positions_summary: str,
     ) -> RiskDecision:
+        safe_reasoning = self._sanitize_external_text(proposal.reasoning)
+        safe_open_positions = self._sanitize_external_text(open_positions_summary or "  None")
         user_msg = f"""Assess this trade proposal:
 
 PROPOSAL:
+  {self.TRUST_BOUNDARY_NOTICE}
   Symbol: {proposal.symbol}
   Direction: {proposal.direction}
   Entry: ${proposal.entry_price:.4f} ({proposal.entry_type})
@@ -85,14 +88,14 @@ PROPOSAL:
   Max Loss: ${proposal.max_loss_usd:.2f} ({proposal.max_loss_pct:.2%})
   R:R Ratio: {proposal.risk_reward_ratio:.2f}
   Portfolio Exposure: {proposal.portfolio_exposure_pct:.2%}
-  Quant Reasoning: {proposal.reasoning}
+  Quant Reasoning: {safe_reasoning}
 
 SIGNAL CONTEXT:
   Analyst Confidence: {signal_confidence:.2f}
   Consecutive Losses: {consecutive_losses}
 
 OPEN POSITIONS:
-{open_positions_summary or "  None"}
+{safe_open_positions}
 
 Hard structural limits: ALL PASSED.
 Assess contextual risk per policy thresholds. Output JSON with: approved, decision_type, risk_score, risk_reasoning, conditions."""

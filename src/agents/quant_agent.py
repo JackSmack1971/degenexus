@@ -5,6 +5,8 @@ import logging
 import math
 from typing import Optional
 
+from pydantic import ValidationError
+
 from .base_agent import BaseAgent
 from ..models.signals import MarketSignal, TradeProposal
 
@@ -75,10 +77,12 @@ class QuantAgent(BaseAgent):
     ) -> str:
         avg_win = avg_win_usd if avg_win_usd > 0 else signal.current_price * 0.03
         avg_loss = avg_loss_usd if avg_loss_usd > 0 else signal.current_price * 0.015
+        safe_reasoning = self._sanitize_external_text(signal.reasoning)
 
         return f"""Design a trade proposal for this signal:
 
 SIGNAL:
+  {self.TRUST_BOUNDARY_NOTICE}
   Symbol: {signal.symbol}
   Direction: {signal.direction}
   Trend: {signal.trend.value}
@@ -87,7 +91,7 @@ SIGNAL:
   Current Price: ${signal.current_price:.4f}
   Entry Zone: ${signal.entry_zone.low:.4f} – ${signal.entry_zone.high:.4f}
   Invalidation Level: ${signal.invalidation_level:.4f}
-  Reasoning: {signal.reasoning}
+  Reasoning: {safe_reasoning}
 
 PORTFOLIO STATE:
   Portfolio Value: ${portfolio_value:,.2f}
@@ -130,7 +134,7 @@ time_in_force, expiry_bars, reasoning"""
             )
             proposal.proposal_hash = proposal.compute_hash()
             return proposal
-        except (KeyError, ValueError, TypeError) as exc:
+        except (KeyError, TypeError, ValueError, ValidationError) as exc:
             logger.error("Failed to parse quant response: %s — response: %s", exc, response)
             return None
 

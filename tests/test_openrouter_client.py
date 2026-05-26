@@ -1,5 +1,6 @@
 """Tests for OpenRouter client — allowlist enforcement and integration plumbing."""
 
+import logging
 import os
 import sys
 from pathlib import Path
@@ -90,6 +91,12 @@ class TestOpenRouterClientConstruction:
             call_kwargs = mock_openai_cls.call_args.kwargs
             assert call_kwargs["api_key"] == "sk-or-secret"
 
+    def test_timeout_passed_to_openai(self):
+        with patch("src.core.openrouter_client.OpenAI") as mock_openai_cls:
+            OpenRouterClient(api_key="sk-or-secret", model=DEFAULT_MODEL, timeout=12.5)
+            call_kwargs = mock_openai_cls.call_args.kwargs
+            assert call_kwargs["timeout"] == 12.5
+
 
 # ---------------------------------------------------------------------------
 # OpenRouterClient.chat()
@@ -152,6 +159,7 @@ class TestBaseAgentProviderSwitching:
         monkeypatch.setenv("LLM_PROVIDER", "openrouter")
         monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
         monkeypatch.setenv("OPENROUTER_MODEL", DEFAULT_MODEL)
+        monkeypatch.setenv("LLM_TIMEOUT_SECONDS", "12.5")
 
         import src.core.openrouter_client as or_mod
         import src.agents.base_agent as ba_mod
@@ -164,12 +172,15 @@ class TestBaseAgentProviderSwitching:
 
             agent = DummyAgent(agent_id="TEST")
             assert agent._provider == "openrouter"
+            assert agent._llm_timeout_seconds == 12.5
+            assert mock_openai_cls.call_args.kwargs["timeout"] == 12.5
 
     def test_anthropic_provider_is_default(self, monkeypatch):
         monkeypatch.delenv("LLM_PROVIDER", raising=False)
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+        monkeypatch.setenv("LLM_TIMEOUT_SECONDS", "9")
 
-        with patch("anthropic.Anthropic"):
+        with patch("anthropic.Anthropic") as mock_anthropic:
             from src.agents.base_agent import BaseAgent
 
             class DummyAgent(BaseAgent):
@@ -178,6 +189,8 @@ class TestBaseAgentProviderSwitching:
 
             agent = DummyAgent(agent_id="TEST")
             assert agent._provider == "anthropic"
+            assert agent._llm_timeout_seconds == 9.0
+            assert mock_anthropic.call_args.kwargs["timeout"] == 9.0
 
     def test_missing_openrouter_key_falls_back(self, monkeypatch):
         monkeypatch.setenv("LLM_PROVIDER", "openrouter")
@@ -192,6 +205,28 @@ class TestBaseAgentProviderSwitching:
         agent = DummyAgent(agent_id="TEST")
         assert agent._provider == "fallback"
         assert agent._client is None
+
+    def test_timeout_error_retries_then_falls_back(self, monkeypatch, caplog):
+        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
+        monkeypatch.setenv("OPENROUTER_MODEL", DEFAULT_MODEL)
+        monkeypatch.setenv("LLM_PROVIDER", "openrouter")
+
+        from src.agents.base_agent import BaseAgent
+
+        class DummyAgent(BaseAgent):
+            def _fallback(self, context):
+                return {"fallback": True}
+
+        with patch("src.core.openrouter_client.OpenAI"):
+            agent = DummyAgent(agent_id="TEST")
+        agent._raw_llm_call = MagicMock(side_effect=TimeoutError("request timed out"))
+
+        with caplog.at_level(logging.WARNING):
+            response = agent.call_llm("sys", "user")
+
+        assert response == {"fallback": True}
+        assert agent._raw_llm_call.call_count == agent.MAX_RETRIES
+        assert "request timed out" in caplog.text
 
     def test_invalid_openrouter_model_falls_back(self, monkeypatch):
         monkeypatch.setenv("LLM_PROVIDER", "openrouter")

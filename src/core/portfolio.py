@@ -120,6 +120,10 @@ class Portfolio:
 
     def open_position(self, position: "Position") -> None:
         """Register a new open position and deduct cash."""
+        if position.position_id in self._positions:
+            raise ValueError(
+                f"Position {position.position_id} already open"
+            )
         cost = position.entry_price * position.shares
         if cost > self._cash:
             raise ValueError(
@@ -172,6 +176,10 @@ class Portfolio:
             raise KeyError(f"Position {position_id} not found")
 
         pos = self._positions[position_id]
+        if shares_to_close <= 0:
+            raise ValueError(
+                f"shares_to_close must be positive, got {shares_to_close}"
+            )
         if shares_to_close >= pos.shares:
             raise ValueError("Use close_position for full close")
 

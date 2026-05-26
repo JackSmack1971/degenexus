@@ -4,7 +4,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Optional, TYPE_CHECKING
 from datetime import datetime, timezone
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 import uuid
 import hashlib
 import json
@@ -83,15 +83,15 @@ class TradeProposal(BaseModel):
     symbol: str
     direction: str
     entry_type: str = "LIMIT"
-    entry_price: float
-    stop_loss: float
-    take_profit: float
-    position_size_shares: int
-    position_value_usd: float
-    max_loss_usd: float
-    max_loss_pct: float
-    risk_reward_ratio: float
-    portfolio_exposure_pct: float
+    entry_price: float = Field(gt=0)
+    stop_loss: float = Field(gt=0)
+    take_profit: float = Field(gt=0)
+    position_size_shares: int = Field(ge=1)
+    position_value_usd: float = Field(gt=0)
+    max_loss_usd: float = Field(gt=0)
+    max_loss_pct: float = Field(gt=0, le=1)
+    risk_reward_ratio: float = Field(gt=0)
+    portfolio_exposure_pct: float = Field(gt=0, le=1)
     time_in_force: str = "GTC"
     expiry_bars: int = 12
     reasoning: str
@@ -114,6 +114,19 @@ class TradeProposal(BaseModel):
     def model_post_init(self, __context: object) -> None:
         if not self.proposal_hash:
             self.proposal_hash = self.compute_hash()
+
+    @model_validator(mode="after")
+    def validate_trade_levels(self) -> "TradeProposal":
+        direction = self.direction.upper()
+        if direction == "LONG":
+            if not (self.stop_loss < self.entry_price < self.take_profit):
+                raise ValueError("LONG proposals must satisfy stop_loss < entry_price < take_profit")
+        elif direction == "SHORT":
+            if not (self.stop_loss > self.entry_price > self.take_profit):
+                raise ValueError("SHORT proposals must satisfy stop_loss > entry_price > take_profit")
+        else:
+            raise ValueError("direction must be LONG or SHORT")
+        return self
 
 
 class RiskDecisionType(str, Enum):

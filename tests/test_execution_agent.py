@@ -20,8 +20,11 @@ def test_execute_happy_path_opens_trade(valid_proposal, valid_risk_decision):
     assert trade is not None
     assert fill is not None
     assert trade.state == TradeState.OPEN
+    assert trade.opened_at is not None
     assert trade.fill_price > valid_proposal.entry_price
+    assert trade.fill_price > 0
     assert trade.shares == valid_proposal.position_size_shares
+    assert fill.trade_id == trade.trade_id
 
 
 def test_execute_returns_block_reason_for_expired_decision(valid_proposal, valid_risk_decision):
