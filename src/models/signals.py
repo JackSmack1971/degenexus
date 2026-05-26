@@ -70,6 +70,9 @@ class MarketSignal(BaseModel):
     @field_validator("direction", mode="before")
     @classmethod
     def _normalise_direction(cls, v: object) -> str:
+        # str(SomeEnum.VALUE) returns "ClassName.VALUE" in Python 3.11+
+        if hasattr(v, "value"):
+            return str(v.value).upper()
         return str(v).upper()
     trend: Trend
     entry_zone: EntryZone
@@ -93,6 +96,9 @@ class TradeProposal(BaseModel):
     @field_validator("direction", mode="before")
     @classmethod
     def _normalise_direction(cls, v: object) -> str:
+        # str(SomeEnum.VALUE) returns "ClassName.VALUE" in Python 3.11+
+        if hasattr(v, "value"):
+            return str(v.value).upper()
         return str(v).upper()
     entry_type: str = "LIMIT"
     entry_price: float = Field(gt=0)
