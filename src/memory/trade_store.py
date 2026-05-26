@@ -52,6 +52,7 @@ class TradeStore:
                     risk_reward_ratio REAL,
                     close_price REAL,
                     close_reason TEXT,
+                    partial_pnl REAL DEFAULT 0.0,
                     realized_pnl REAL,
                     realized_pnl_pct REAL,
                     risk_score REAL,
@@ -98,6 +99,14 @@ class TradeStore:
                 CREATE INDEX IF NOT EXISTS idx_trades_state ON trades(state);
                 CREATE INDEX IF NOT EXISTS idx_trades_closed_at ON trades(closed_at);
             """)
+            columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(trades)").fetchall()
+            }
+            if "partial_pnl" not in columns:
+                conn.execute(
+                    "ALTER TABLE trades ADD COLUMN partial_pnl REAL DEFAULT 0.0"
+                )
 
     # ── Trades ──────────────────────────────────────────────────────────────
 
@@ -109,7 +118,7 @@ class TradeStore:
                     :trade_id, :proposal_id, :signal_id, :symbol, :direction,
                     :state, :order_type, :entry_price, :fill_price, :slippage_pct,
                     :shares, :stop_loss, :take_profit, :max_loss_usd, :risk_reward_ratio,
-                    :close_price, :close_reason, :realized_pnl, :realized_pnl_pct,
+                    :close_price, :close_reason, :partial_pnl, :realized_pnl, :realized_pnl_pct,
                     :risk_score, :agent_reasoning, :opened_at, :closed_at, :created_at
                 ) ON CONFLICT(trade_id) DO UPDATE SET
                     state=excluded.state,
@@ -117,6 +126,7 @@ class TradeStore:
                     slippage_pct=excluded.slippage_pct,
                     close_price=excluded.close_price,
                     close_reason=excluded.close_reason,
+                    partial_pnl=excluded.partial_pnl,
                     realized_pnl=excluded.realized_pnl,
                     realized_pnl_pct=excluded.realized_pnl_pct,
                     opened_at=excluded.opened_at,
@@ -140,6 +150,7 @@ class TradeStore:
                 "risk_reward_ratio": trade.risk_reward_ratio,
                 "close_price": trade.close_price,
                 "close_reason": trade.close_reason.value if trade.close_reason and hasattr(trade.close_reason, 'value') else str(trade.close_reason) if trade.close_reason else None,
+                "partial_pnl": trade.partial_pnl,
                 "realized_pnl": trade.realized_pnl,
                 "realized_pnl_pct": trade.realized_pnl_pct,
                 "risk_score": trade.risk_score,

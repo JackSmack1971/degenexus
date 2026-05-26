@@ -1,10 +1,17 @@
-"""Tests for PortfolioManagerAgent position tracking."""
+"""Tests for PortfolioManagerAgent partial take-profit accounting and position tracking."""
 
 import uuid
 
 from src.agents.portfolio_manager import PortfolioManagerAgent
 from src.core.portfolio import Portfolio
-from src.models.trade import Direction, OrderType, Position, Trade, TradeState
+from src.models.trade import (
+    CloseReason,
+    Direction,
+    OrderType,
+    Position,
+    Trade,
+    TradeState,
+)
 
 
 def make_open_trade(symbol: str, shares: int, fill_price: float) -> Trade:
@@ -37,6 +44,30 @@ def make_position_for_trade(trade: Trade) -> Position:
         stop_loss=trade.stop_loss,
         take_profit=trade.take_profit,
     )
+
+
+def test_partial_tp_is_included_in_final_realized_pnl():
+    portfolio = Portfolio(starting_capital=10_000.0)
+    agent = PortfolioManagerAgent(portfolio=portfolio)
+
+    trade = make_open_trade(symbol="AAPL", shares=10, fill_price=150.0)
+    trade.stop_loss = 147.5
+    trade.take_profit = 155.0
+    trade.max_loss_usd = 25.0
+    position = make_position_for_trade(trade)
+
+    agent.register_trade(trade, position)
+
+    agent._execute_partial_tp(trade, current_price=151.0, position_id=position.position_id)
+    closed = agent._close_trade(
+        trade,
+        close_price=152.0,
+        reason=CloseReason.TAKE_PROFIT,
+        position_id=position.position_id,
+    )
+
+    assert closed.partial_pnl == 5.0
+    assert closed.realized_pnl == 15.0
 
 
 def test_monitor_cycle_updates_each_duplicate_symbol_position():
