@@ -5,6 +5,7 @@ Cannot execute without a valid RiskDecision from the ExecutionGate.
 
 from __future__ import annotations
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -68,6 +69,7 @@ class ExecutionAgent(BaseAgent):
             signal_id=effective_proposal.signal_id,
             symbol=effective_proposal.symbol,
             direction=Direction(effective_proposal.direction),
+            state=TradeState.CEO_APPROVED,
             order_type=OrderType(order_type_str),
             entry_price=effective_proposal.entry_price,
             fill_price=fill_price,
@@ -86,7 +88,6 @@ class ExecutionAgent(BaseAgent):
             },
         )
 
-        trade = self.lifecycle.transition(trade, TradeState.CEO_APPROVED)
         trade = self.lifecycle.transition(trade, TradeState.QUEUED)
         trade = self.lifecycle.open_trade(trade, fill_price, slippage_pct)
 
@@ -124,7 +125,7 @@ class ExecutionAgent(BaseAgent):
         for condition in risk_decision.conditions:
             c = condition.lower()
             if "reduce_size" in c or "reduce size" in c:
-                factor = 0.8
+                factor = self._parse_size_factor(c)
                 adjusted.position_size_shares = max(1, int(adjusted.position_size_shares * factor))
                 adjusted.position_value_usd = adjusted.entry_price * adjusted.position_size_shares
                 adjusted.max_loss_usd = abs(adjusted.entry_price - adjusted.stop_loss) * adjusted.position_size_shares
@@ -133,6 +134,14 @@ class ExecutionAgent(BaseAgent):
                 adjusted.proposal_hash = adjusted.compute_hash()
 
         return adjusted
+
+    def _parse_size_factor(self, condition: str) -> float:
+        match = re.search(r"(\d+)\s*pct", condition.lower())
+        if not match:
+            return 0.8
+
+        pct = min(int(match.group(1)), 99)
+        return 1.0 - (pct / 100.0)
 
     def _fallback(self, context: str) -> dict:
         return {}
