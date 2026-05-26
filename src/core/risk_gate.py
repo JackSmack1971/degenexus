@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from typing import TYPE_CHECKING
+import math
 import os
 
 if TYPE_CHECKING:
@@ -75,6 +76,27 @@ class RiskGate:
         Does NOT raise — callers decide whether to halt or log.
         """
         violations: list[str] = []
+
+        financial_values = {
+            "entry_price": proposal.entry_price,
+            "stop_loss": proposal.stop_loss,
+            "take_profit": proposal.take_profit,
+            "position_value_usd": proposal.position_value_usd,
+            "max_loss_usd": proposal.max_loss_usd,
+            "risk_reward_ratio": proposal.risk_reward_ratio,
+            "portfolio_value": portfolio_value,
+            "total_exposure_usd": total_exposure_usd,
+        }
+        invalid_fields = [
+            name for name, value in financial_values.items()
+            if not math.isfinite(float(value))
+        ]
+        if invalid_fields:
+            violations.append(
+                "INVALID_FINANCIAL_VALUE: non-finite inputs detected for "
+                + ", ".join(sorted(invalid_fields))
+            )
+            return violations
 
         max_allowed_loss = portfolio_value * self.limits.max_loss_pct_per_trade
         if proposal.max_loss_usd > max_allowed_loss:

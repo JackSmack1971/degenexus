@@ -1,5 +1,6 @@
 """Tests for RiskGate hard rules — most critical path in the system."""
 
+import math
 import pytest
 from src.core.risk_gate import RiskGate, RiskLimits
 from src.models.signals import TradeProposal, RiskDecisionType
@@ -34,6 +35,11 @@ class TestMaxLossRule:
         valid_proposal.max_loss_usd = 200.01
         violations = check_hard_rules(risk_gate, valid_proposal, portfolio_value=10_000.0)
         assert any("MAX_LOSS_EXCEEDED" in v for v in violations)
+
+    def test_nan_max_loss_is_rejected(self, risk_gate, valid_proposal):
+        valid_proposal.max_loss_usd = math.nan
+        violations = check_hard_rules(risk_gate, valid_proposal)
+        assert any("INVALID_FINANCIAL_VALUE" in v for v in violations)
 
 
 class TestPositionLimitRule:
