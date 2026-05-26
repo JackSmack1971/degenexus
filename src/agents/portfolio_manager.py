@@ -22,11 +22,12 @@ class PortfolioManagerAgent(BaseAgent):
         performance_context: str = "",
         event_callback: Optional[Callable] = None,
         trade_store: Optional[TradeStore] = None,
+        feed: Optional[MarketFeed] = None,
     ) -> None:
         super().__init__("PORTFOLIO_MANAGER", performance_context)
         self.portfolio = portfolio
         self.lifecycle = TradeLifecycle()
-        self.feed = MarketFeed()
+        self.feed = feed if feed is not None else MarketFeed()
         self._event_callback = event_callback or (lambda etype, content: None)
         self._trade_store = trade_store
         self._open_trades: dict[str, Trade] = {}

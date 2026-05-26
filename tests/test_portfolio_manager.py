@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 from src.agents.portfolio_manager import PortfolioManagerAgent
 from src.core.portfolio import Portfolio
+from src.data.market_feed import MarketFeed
 from src.models.trade import (
     CloseReason,
     Direction,
@@ -97,7 +98,7 @@ def test_monitor_cycle_updates_each_duplicate_symbol_position():
 # ---------------------------------------------------------------------------
 
 class TestInitWithTradeStore:
-    """Line 36 — _partial_tp_flags seeded from DB when trade_store is provided."""
+    """Line 36 -- _partial_tp_flags seeded from DB when trade_store is provided."""
 
     def test_partial_tp_flags_seeded_from_db(self):
         ts = MagicMock()
@@ -115,7 +116,7 @@ class TestInitWithTradeStore:
 
 
 class TestMonitorCycleTerminalStateTrade:
-    """Line 65 — trade in non-OPEN/PARTIALLY_CLOSED state is skipped."""
+    """Line 65 -- trade in non-OPEN/PARTIALLY_CLOSED state is skipped."""
 
     def test_terminal_state_trade_not_closed_again(self):
         portfolio = Portfolio(starting_capital=10_000.0)
@@ -124,17 +125,16 @@ class TestMonitorCycleTerminalStateTrade:
         trade = make_open_trade(symbol="AAPL", shares=10, fill_price=100.0)
         position = make_position_for_trade(trade)
         agent.register_trade(trade, position)
-        # Manually place the trade into CANCELLED state (terminal but still in dict)
         trade.state = TradeState.CANCELLED
 
         closed = agent.monitor_cycle()
 
-        assert closed == []  # nothing closed; the terminal-state trade was skipped
-        assert trade.trade_id in agent._open_trades  # still in dict (not removed by monitor)
+        assert closed == []
+        assert trade.trade_id in agent._open_trades
 
 
 class TestMonitorCyclePriceNone:
-    """Lines 69-70 — feed returns None; trade is preserved."""
+    """Lines 69-70 -- feed returns None; trade is preserved."""
 
     def test_price_none_trade_stays_open(self):
         portfolio = Portfolio(starting_capital=10_000.0)
@@ -153,7 +153,7 @@ class TestMonitorCyclePriceNone:
 
 
 class TestMonitorCyclePartialTP:
-    """Lines 80-81 — partial TP triggered via monitor_cycle."""
+    """Lines 80-81 -- partial TP triggered via monitor_cycle."""
 
     def test_partial_tp_dispatched_when_price_hits_level(self):
         portfolio = Portfolio(starting_capital=50_000.0)
@@ -163,19 +163,17 @@ class TestMonitorCyclePartialTP:
             event_callback=lambda etype, content: events.append((etype, content)),
         )
 
-        # fill=100, stop=90 → risk_distance=10 → partial_tp_level=115
         trade = make_open_trade(symbol="TSLA", shares=10, fill_price=100.0)
         trade.stop_loss = 90.0
-        trade.take_profit = 200.0  # high enough that full TP doesn't fire
+        trade.take_profit = 200.0
         position = make_position_for_trade(trade)
         agent.register_trade(trade, position)
 
-        # price=115 exactly hits partial TP level (fill + 1.5 * risk_distance)
         agent.feed.get_current_price = lambda s: 115.0
 
         closed = agent.monitor_cycle()
 
-        assert closed == []  # full close not triggered
+        assert closed == []
         assert trade.state == TradeState.PARTIALLY_CLOSED
         assert trade.trade_id in agent._partial_tp_flags
         assert any(etype == "PARTIAL_TP" for etype, _ in events)
@@ -193,17 +191,17 @@ class TestMonitorCyclePartialTP:
         trade.take_profit = 200.0
         position = make_position_for_trade(trade)
         agent.register_trade(trade, position)
-        agent._partial_tp_flags.add(trade.trade_id)  # already flagged
+        agent._partial_tp_flags.add(trade.trade_id)
         agent.feed.get_current_price = lambda s: 115.0
 
         agent.monitor_cycle()
 
         partial_tp_events = [e for e in events if e[0] == "PARTIAL_TP"]
-        assert partial_tp_events == []  # not re-triggered
+        assert partial_tp_events == []
 
 
 class TestMonitorCycleFullClose:
-    """Lines 86-90 — full TP/SL close path."""
+    """Lines 86-90 -- full TP/SL close path."""
 
     def test_take_profit_triggers_full_close(self):
         portfolio = Portfolio(starting_capital=50_000.0)
@@ -213,8 +211,7 @@ class TestMonitorCycleFullClose:
         position = make_position_for_trade(trade)
         agent.register_trade(trade, position)
 
-        # Price at take_profit (fill + 30)
-        tp_price = trade.take_profit  # 130.0
+        tp_price = trade.take_profit
         agent.feed.get_current_price = lambda s: tp_price
 
         closed = agent.monitor_cycle()
@@ -233,7 +230,7 @@ class TestMonitorCycleFullClose:
         position = make_position_for_trade(trade)
         agent.register_trade(trade, position)
 
-        sl_price = trade.stop_loss  # 70.0
+        sl_price = trade.stop_loss
         agent.feed.get_current_price = lambda s: sl_price
 
         closed = agent.monitor_cycle()
@@ -259,7 +256,7 @@ class TestMonitorCycleFullClose:
 
 
 class TestCloseTradeOpenBranch:
-    """Line 116 — _close_trade for OPEN (non-partial) trade sets partial_pnl=0."""
+    """Line 116 -- _close_trade for OPEN (non-partial) trade sets partial_pnl=0."""
 
     def test_close_open_trade_partial_pnl_zero(self):
         portfolio = Portfolio(starting_capital=10_000.0)
@@ -269,7 +266,7 @@ class TestCloseTradeOpenBranch:
         position = make_position_for_trade(trade)
         agent.register_trade(trade, position)
 
-        assert trade.state == TradeState.OPEN  # confirm not partially closed
+        assert trade.state == TradeState.OPEN
 
         closed = agent._close_trade(
             trade,
@@ -278,13 +275,12 @@ class TestCloseTradeOpenBranch:
             position_id=position.position_id,
         )
 
-        # partial_pnl is 0 because trade was OPEN, not PARTIALLY_CLOSED
-        assert closed.realized_pnl == (110.0 - 100.0) * 10  # 100.0 (no partial added)
+        assert closed.realized_pnl == (110.0 - 100.0) * 10
         assert closed.close_reason == CloseReason.TAKE_PROFIT
 
 
 class TestCloseTradeConsecutiveLoss:
-    """Lines 130-131 — negative PnL emits CONSECUTIVE_LOSS event."""
+    """Lines 130-131 -- negative PnL emits CONSECUTIVE_LOSS event."""
 
     def test_loss_emits_consecutive_loss_event(self):
         events: list[tuple[str, str]] = []
@@ -298,10 +294,9 @@ class TestCloseTradeConsecutiveLoss:
         position = make_position_for_trade(trade)
         agent.register_trade(trade, position)
 
-        # close below fill → loss
         agent._close_trade(
             trade,
-            close_price=90.0,  # $10 loss × 10 shares = -$100
+            close_price=90.0,
             reason=CloseReason.STOP_LOSS,
             position_id=position.position_id,
         )
@@ -324,7 +319,7 @@ class TestCloseTradeConsecutiveLoss:
 
         agent._close_trade(
             trade,
-            close_price=110.0,  # profit
+            close_price=110.0,
             reason=CloseReason.TAKE_PROFIT,
             position_id=position.position_id,
         )
@@ -346,7 +341,7 @@ class TestCloseTradeConsecutiveLoss:
 
         agent._close_trade(
             trade,
-            close_price=100.0,  # breakeven
+            close_price=100.0,
             reason=CloseReason.MANUAL,
             position_id=position.position_id,
         )
@@ -355,7 +350,7 @@ class TestCloseTradeConsecutiveLoss:
 
 
 class TestExecutePartialTPOneShareGuard:
-    """Lines 149-153 — 1-share trade skips partial TP execution."""
+    """Lines 149-153 -- 1-share trade skips partial TP execution."""
 
     def test_one_share_guard_returns_early(self):
         portfolio = Portfolio(starting_capital=10_000.0)
@@ -369,14 +364,13 @@ class TestExecutePartialTPOneShareGuard:
         position = make_position_for_trade(trade)
         agent.register_trade(trade, position)
 
-        # shares_to_close = max(1, 1//2) = max(1,0) = 1; 1 >= 1 → guard fires
         agent._execute_partial_tp(trade, current_price=115.0, position_id=position.position_id)
 
-        assert trade.state == TradeState.OPEN  # state unchanged
-        ts.upsert_trade.assert_not_called()    # DB write skipped
+        assert trade.state == TradeState.OPEN
+        ts.upsert_trade.assert_not_called()
 
     def test_two_share_trade_executes_partial_tp(self):
-        """BVA: 2-share boundary — shares_to_close=1 < 2, so partial TP proceeds."""
+        """BVA: 2-share boundary -- shares_to_close=1 < 2, so partial TP proceeds."""
         portfolio = Portfolio(starting_capital=10_000.0)
         ts = MagicMock()
         agent = PortfolioManagerAgent(
@@ -391,11 +385,11 @@ class TestExecutePartialTPOneShareGuard:
         agent._execute_partial_tp(trade, current_price=115.0, position_id=position.position_id)
 
         assert trade.state == TradeState.PARTIALLY_CLOSED
-        ts.upsert_trade.assert_called_once_with(trade)  # line 166
+        ts.upsert_trade.assert_called_once_with(trade)
 
 
 class TestExecutePartialTPStoreUpsert:
-    """Line 166 — upsert_trade called when trade_store is provided."""
+    """Line 166 -- upsert_trade called when trade_store is provided."""
 
     def test_upsert_trade_called_after_partial_tp(self):
         portfolio = Portfolio(starting_capital=50_000.0)
@@ -415,19 +409,18 @@ class TestExecutePartialTPStoreUpsert:
 
     def test_upsert_trade_not_called_without_trade_store(self):
         portfolio = Portfolio(starting_capital=50_000.0)
-        agent = PortfolioManagerAgent(portfolio=portfolio)  # no trade_store
+        agent = PortfolioManagerAgent(portfolio=portfolio)
 
         trade = make_open_trade(symbol="TSLA", shares=10, fill_price=100.0)
         position = make_position_for_trade(trade)
         agent.register_trade(trade, position)
 
-        # Should not raise even without a trade_store
         agent._execute_partial_tp(trade, current_price=115.0, position_id=position.position_id)
         assert trade.state == TradeState.PARTIALLY_CLOSED
 
 
 class TestOpenTradesSummary:
-    """Lines 177-189 — open_trades_summary formats active positions."""
+    """Lines 177-189 -- open_trades_summary formats active positions."""
 
     def test_summary_no_open_trades(self):
         agent = PortfolioManagerAgent(portfolio=Portfolio(starting_capital=1_000.0))
@@ -446,7 +439,7 @@ class TestOpenTradesSummary:
         assert "AAPL" in summary
         assert "LONG" in summary
         assert "10sh" in summary
-        assert "150.00" in summary  # fill_price
+        assert "150.00" in summary
 
     def test_summary_contains_unrealized_pnl(self):
         portfolio = Portfolio(starting_capital=10_000.0)
@@ -455,7 +448,6 @@ class TestOpenTradesSummary:
         trade = make_open_trade(symbol="TSLA", shares=5, fill_price=200.0)
         position = make_position_for_trade(trade)
         agent.register_trade(trade, position)
-        # Update the position price to create unrealized PnL
         portfolio.update_position_price(position.position_id, 210.0)
 
         summary = agent.open_trades_summary()
@@ -479,9 +471,105 @@ class TestOpenTradesSummary:
 
 
 class TestFallback:
-    """Line 192 — _fallback returns empty dict."""
+    """Line 192 -- _fallback returns empty dict."""
 
     def test_fallback_returns_empty_dict(self):
         agent = PortfolioManagerAgent(portfolio=Portfolio(starting_capital=1_000.0))
         result = agent._fallback("any context")
         assert result == {}
+
+
+# ---------------------------------------------------------------------------
+# Issue #57 -- MarketFeed dependency injection tests
+# ---------------------------------------------------------------------------
+
+class FakeMarketFeed:
+    """Deterministic feed that returns pre-configured prices per symbol."""
+
+    def __init__(self, prices: dict[str, float | None]):
+        self._prices = prices
+
+    def get_current_price(self, symbol: str) -> float | None:
+        return self._prices.get(symbol)
+
+
+class TestMarketFeedDI:
+    """Verify feed DI parameter: correct type, default fallback, and monitor_cycle integration."""
+
+    def test_injected_feed_is_used(self):
+        fake_feed = FakeMarketFeed({"AAPL": 150.0})
+        agent = PortfolioManagerAgent(
+            portfolio=Portfolio(starting_capital=10_000.0),
+            feed=fake_feed,
+        )
+        assert agent.feed is fake_feed
+
+    def test_default_feed_is_real_market_feed(self):
+        agent = PortfolioManagerAgent(portfolio=Portfolio(starting_capital=10_000.0))
+        assert isinstance(agent.feed, MarketFeed)
+
+    def test_monitor_cycle_price_none_via_injected_feed(self):
+        """Injected feed returning None -> trade preserved (lines 69-70)."""
+        fake_feed = FakeMarketFeed({"AAPL": None})
+        portfolio = Portfolio(starting_capital=10_000.0)
+        agent = PortfolioManagerAgent(portfolio=portfolio, feed=fake_feed)
+
+        trade = make_open_trade(symbol="AAPL", shares=10, fill_price=100.0)
+        position = make_position_for_trade(trade)
+        agent.register_trade(trade, position)
+
+        closed = agent.monitor_cycle()
+
+        assert closed == []
+        assert trade.state == TradeState.OPEN
+
+    def test_monitor_cycle_partial_tp_via_injected_feed(self):
+        """Injected feed at partial-TP level triggers _execute_partial_tp (lines 80-81)."""
+        fake_feed = FakeMarketFeed({"TSLA": 115.0})
+        portfolio = Portfolio(starting_capital=50_000.0)
+        events: list[tuple[str, str]] = []
+        agent = PortfolioManagerAgent(
+            portfolio=portfolio,
+            feed=fake_feed,
+            event_callback=lambda etype, content: events.append((etype, content)),
+        )
+
+        trade = make_open_trade(symbol="TSLA", shares=10, fill_price=100.0)
+        trade.stop_loss = 90.0
+        trade.take_profit = 200.0
+        position = make_position_for_trade(trade)
+        agent.register_trade(trade, position)
+
+        agent.monitor_cycle()
+
+        assert trade.state == TradeState.PARTIALLY_CLOSED
+        assert any(e[0] == "PARTIAL_TP" for e in events)
+
+    def test_monitor_cycle_full_close_via_injected_feed(self):
+        """Injected feed at TP price triggers full close."""
+        trade = make_open_trade(symbol="AAPL", shares=10, fill_price=100.0)
+        fake_feed = FakeMarketFeed({"AAPL": trade.take_profit})
+        portfolio = Portfolio(starting_capital=50_000.0)
+        agent = PortfolioManagerAgent(portfolio=portfolio, feed=fake_feed)
+
+        position = make_position_for_trade(trade)
+        agent.register_trade(trade, position)
+
+        closed = agent.monitor_cycle()
+
+        assert len(closed) == 1
+        assert closed[0].close_reason == CloseReason.TAKE_PROFIT
+
+    def test_edge_case_feed_returns_nan(self):
+        """feed.get_current_price returns float('nan') -- treated as valid price (not None guard)."""
+        import math
+        fake_feed = FakeMarketFeed({"AAPL": float("nan")})
+        portfolio = Portfolio(starting_capital=10_000.0)
+        agent = PortfolioManagerAgent(portfolio=portfolio, feed=fake_feed)
+
+        trade = make_open_trade(symbol="AAPL", shares=10, fill_price=100.0)
+        position = make_position_for_trade(trade)
+        agent.register_trade(trade, position)
+
+        closed = agent.monitor_cycle()
+        assert isinstance(closed, list)
