@@ -46,14 +46,18 @@ class TradingOrchestrator:
         self,
         watchlist: list[str],
         event_callback: Optional[Callable[[DebateEvent], None]] = None,
+        *,
+        portfolio: Optional[Portfolio] = None,
+        trade_store: Optional[TradeStore] = None,
+        risk_gate: Optional[RiskGate] = None,
     ) -> None:
         self.watchlist = watchlist
         self.event_callback = event_callback or (lambda e: None)
         self.session_id = str(uuid.uuid4())
 
-        self.portfolio = Portfolio()
-        self.risk_gate = RiskGate()
-        self.trade_store = TradeStore()
+        self.portfolio = portfolio or Portfolio()
+        self.risk_gate = risk_gate or RiskGate()
+        self.trade_store = trade_store or TradeStore()
         self.performance = PerformanceAnalytics()
         self.context_injector = ContextInjector()
 
@@ -294,7 +298,7 @@ class TradingOrchestrator:
     def _build_context(self) -> str:
         trades = self.trade_store.get_recent_trades(50)
         stats = self.performance.compute(trades)
-        snapshot = self.portfolio.snapshot() if hasattr(self, "portfolio") else None
+        snapshot = self.portfolio.snapshot()
         open_positions = (
             self.portfolio_manager.open_trades_summary()
             if hasattr(self, "portfolio_manager") else ""
@@ -303,7 +307,7 @@ class TradingOrchestrator:
             stats,
             snapshot,
             risk_limits=self.risk_gate.limits,
-            consecutive_losses=self.portfolio.consecutive_losses if hasattr(self, "portfolio") else 0,
+            consecutive_losses=self.portfolio.consecutive_losses,
             watchlist=self.watchlist,
             open_positions_summary=open_positions,
         )
