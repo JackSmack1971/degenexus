@@ -28,6 +28,7 @@ class PortfolioManagerAgent(BaseAgent):
         self.feed = MarketFeed()
         self._event_callback = event_callback or (lambda etype, content: None)
         self._open_trades: dict[str, Trade] = {}
+        self._trade_to_position: dict[str, str] = {}
         self._partial_tp_flags: set[str] = set()
 
     def _emit(self, event_type: str, content: str) -> None:
@@ -37,6 +38,7 @@ class PortfolioManagerAgent(BaseAgent):
         """Called by Orchestrator after execution to register open trade."""
         self._open_trades[trade.trade_id] = trade
         self.portfolio.open_position(position)
+        self._trade_to_position[trade.trade_id] = position.position_id
         logger.info(
             "PM: registered %s %s %d @ $%.4f",
             trade.direction.value, trade.symbol, trade.shares, trade.fill_price
@@ -60,7 +62,7 @@ class PortfolioManagerAgent(BaseAgent):
                 continue
 
             # Update mark-to-market for corresponding position
-            pos_id = self._find_position_id(trade.symbol)
+            pos_id = self._trade_to_position.get(trade_id)
             if pos_id:
                 self.portfolio.update_position_price(pos_id, current_price)
 
@@ -76,6 +78,8 @@ class PortfolioManagerAgent(BaseAgent):
                 closed_trade = self._close_trade(trade, current_price, close_reason, pos_id)
                 closed_trades.append(closed_trade)
                 del self._open_trades[trade_id]
+                self._trade_to_position.pop(trade_id, None)
+                self._partial_tp_flags.discard(trade_id)
 
         # Emit a single mark-to-market snapshot if any positions remain open
         remaining = [t for t in self._open_trades.values()
@@ -83,7 +87,7 @@ class PortfolioManagerAgent(BaseAgent):
         if remaining:
             lines = []
             for t in remaining:
-                pos_id = self._find_position_id(t.symbol)
+                pos_id = self._trade_to_position.get(t.trade_id)
                 pos = self.portfolio.open_positions.get(pos_id) if pos_id else None
                 pnl_str = f"${pos.unrealized_pnl:+.2f}" if pos else "N/A"
                 lines.append(f"{t.symbol} {t.direction.value} {t.shares}sh | UnrPnL: {pnl_str}")
@@ -146,12 +150,6 @@ class PortfolioManagerAgent(BaseAgent):
             f"@ ${current_price:.2f} | PnL: ${pnl:+.2f} | remaining: {trade.shares}sh",
         )
 
-    def _find_position_id(self, symbol: str) -> Optional[str]:
-        for pos_id, pos in self.portfolio.open_positions.items():
-            if pos.symbol == symbol:
-                return pos_id
-        return None
-
     def _get_partial_pnl(self, trade: Trade) -> float:
         return 0.0
 
@@ -160,7 +158,7 @@ class PortfolioManagerAgent(BaseAgent):
             return "No open positions."
         lines = []
         for t in self._open_trades.values():
-            pos_id = self._find_position_id(t.symbol)
+            pos_id = self._trade_to_position.get(t.trade_id)
             pos = self.portfolio.open_positions.get(pos_id) if pos_id else None
             pnl_str = f"${pos.unrealized_pnl:+.2f}" if pos else "N/A"
             lines.append(
