@@ -6,6 +6,8 @@ from typing import Optional
 from dataclasses import dataclass, field
 import os
 
+from ..models.trade import Position, Trade
+
 
 @dataclass
 class PortfolioSnapshot:
