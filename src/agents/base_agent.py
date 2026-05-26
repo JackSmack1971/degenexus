@@ -5,7 +5,6 @@ import json
 import logging
 import os
 from typing import Any, Optional
-from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +102,6 @@ class BaseAgent:
         self,
         system_prompt: str,
         user_message: str,
-        response_schema: type[BaseModel] | None = None,
     ) -> dict:
         """
         Call the LLM and return a parsed dict.
@@ -113,17 +111,10 @@ class BaseAgent:
             return self._fallback(user_message)
 
         full_system = self._inject_context(system_prompt)
-        schema_instruction = ""
-        if response_schema:
-            schema_instruction = (
-                f"\n\nRespond ONLY with valid JSON matching this schema:\n"
-                f"{json.dumps(response_schema.model_json_schema(), indent=2)}\n"
-                "Do not include any text outside the JSON object."
-            )
 
         for attempt in range(self.MAX_RETRIES):
             try:
-                raw = self._raw_llm_call(full_system + schema_instruction, user_message)
+                raw = self._raw_llm_call(full_system, user_message)
                 return self._parse_json(raw)
 
             except Exception as exc:
