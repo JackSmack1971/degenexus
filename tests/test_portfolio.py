@@ -160,3 +160,25 @@ class TestPnL:
 
         assert portfolio.win_count == 3
         assert portfolio.total_value > portfolio.starting_capital
+
+
+class TestPartialClosePosition:
+    def test_rejects_negative_shares_to_close(self, portfolio):
+        trade = make_trade(fill_price=100.0, shares=10)
+        position = make_position(trade)
+        portfolio.open_position(position)
+
+        cash_before = portfolio.cash
+        with pytest.raises(ValueError, match="shares_to_close must be positive"):
+            portfolio.partial_close_position(position.position_id, 105.0, -3)
+
+        assert portfolio.cash == cash_before
+        assert portfolio.open_positions[position.position_id].shares == 10
+
+    def test_rejects_zero_shares_to_close(self, portfolio):
+        trade = make_trade(fill_price=100.0, shares=10)
+        position = make_position(trade)
+        portfolio.open_position(position)
+
+        with pytest.raises(ValueError, match="shares_to_close must be positive"):
+            portfolio.partial_close_position(position.position_id, 105.0, 0)
