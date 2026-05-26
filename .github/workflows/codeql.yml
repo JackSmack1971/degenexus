@@ -5,12 +5,10 @@ on:
     branches:
       - main
       - master
-      - develop
   pull_request:
     branches:
       - main
       - master
-      - develop
   schedule:
     - cron: "0 6 * * 1"
 
@@ -36,9 +34,6 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3
