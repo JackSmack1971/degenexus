@@ -176,6 +176,10 @@ class Portfolio:
             raise KeyError(f"Position {position_id} not found")
 
         pos = self._positions[position_id]
+        if shares_to_close <= 0:
+            raise ValueError(
+                f"shares_to_close must be positive, got {shares_to_close}"
+            )
         if shares_to_close >= pos.shares:
             raise ValueError("Use close_position for full close")
 
