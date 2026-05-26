@@ -139,3 +139,162 @@ class TestIndicatorNaNHandling:
         result = engine._volume_ratio(volumes)
         assert "volume_ratio" in result
         assert result["volume_ratio"] is not None
+
+
+class TestComputeAllOuterException:
+    """Lines 40-42 — outer except in compute_all returns {} when internals raise."""
+
+    def test_outer_exception_returns_empty_dict(self, mocker):
+        engine = IndicatorEngine()
+        bars = _make_bars(30)
+        # Force an exception outside the sub-method try/excepts by patching _rsi to raise
+        mocker.patch.object(engine, "_rsi", side_effect=RuntimeError("injected failure"))
+        result = engine.compute_all(bars)
+        assert result == {}
+
+    def test_bad_bar_attribute_raises_returns_empty_dict(self):
+        """When bar.close is a property that raises, the outer except fires."""
+        class ExplodingBar:
+            @property
+            def close(self):
+                raise AttributeError("no close attr")
+            @property
+            def high(self):
+                raise AttributeError("no high attr")
+            @property
+            def low(self):
+                raise AttributeError("no low attr")
+            @property
+            def volume(self):
+                raise AttributeError("no volume attr")
+
+        engine = IndicatorEngine()
+        result = engine.compute_all([ExplodingBar()])
+        assert result == {}
+
+
+class TestBollingerPriceClassification:
+    """Lines 78-91 — all 5 bb_position classifications."""
+
+    def _make_bollinger_result(self, price: float, upper: float, lower: float, mid: float) -> dict:
+        """Helper: mock BollingerBands to return fixed band values, set last close to price."""
+        import pandas as pd
+        engine = IndicatorEngine()
+        closes = pd.Series([mid] * 25 + [price])
+
+        mock_bb = MagicMock()
+        mock_bb.bollinger_hband.return_value = pd.Series([upper])
+        mock_bb.bollinger_lband.return_value = pd.Series([lower])
+        mock_bb.bollinger_mavg.return_value = pd.Series([mid])
+
+        with patch("ta.volatility.BollingerBands", return_value=mock_bb):
+            return engine._bollinger(closes)
+
+    def test_price_above_upper_band(self):
+        result = self._make_bollinger_result(price=110.0, upper=105.0, lower=95.0, mid=100.0)
+        assert result["bb_position"] == "ABOVE_UPPER"
+        assert result["bb_upper"] == pytest.approx(105.0)
+        assert result["bb_lower"] == pytest.approx(95.0)
+
+    def test_price_in_upper_zone(self):
+        # UPPER: price >= mid + (upper-mid)*0.5 = 100 + 2.5 = 102.5
+        result = self._make_bollinger_result(price=103.0, upper=105.0, lower=95.0, mid=100.0)
+        assert result["bb_position"] == "UPPER"
+
+    def test_price_in_mid_zone(self):
+        # MID: price >= mid - (mid-lower)*0.5 = 100 - 2.5 = 97.5 and < 102.5
+        result = self._make_bollinger_result(price=99.0, upper=105.0, lower=95.0, mid=100.0)
+        assert result["bb_position"] == "MID"
+
+    def test_price_in_lower_zone(self):
+        # LOWER: price >= lower=95.0 and < 97.5
+        result = self._make_bollinger_result(price=96.0, upper=105.0, lower=95.0, mid=100.0)
+        assert result["bb_position"] == "LOWER"
+
+    def test_price_below_lower_band(self):
+        # BELOW_LOWER: price < lower=95.0
+        result = self._make_bollinger_result(price=90.0, upper=105.0, lower=95.0, mid=100.0)
+        assert result["bb_position"] == "BELOW_LOWER"
+
+    def test_bva_price_exactly_at_upper(self):
+        """BVA boundary: price == upper → ABOVE_UPPER."""
+        result = self._make_bollinger_result(price=105.0, upper=105.0, lower=95.0, mid=100.0)
+        assert result["bb_position"] == "ABOVE_UPPER"
+
+    def test_bva_price_exactly_at_lower(self):
+        """BVA boundary: price == lower → LOWER (not BELOW_LOWER)."""
+        result = self._make_bollinger_result(price=95.0, upper=105.0, lower=95.0, mid=100.0)
+        assert result["bb_position"] == "LOWER"
+
+
+class TestATRSuccessPath:
+    """Lines 115-116 — ATR valid computation with sufficient bars."""
+
+    def test_atr_with_30_bars_returns_float(self):
+        try:
+            import ta  # noqa
+        except (ImportError, Exception):
+            pytest.skip("ta library not available")
+        import pandas as pd
+        engine = IndicatorEngine()
+        bars = _make_bars(30)
+        highs = pd.Series([b.high for b in bars])
+        lows = pd.Series([b.low for b in bars])
+        closes = pd.Series([b.close for b in bars])
+        result = engine._atr(highs, lows, closes)
+        assert "atr_14" in result
+        assert result["atr_14"] is not None
+        assert isinstance(result["atr_14"], float)
+
+    def test_compute_all_with_sufficient_bars_covers_atr_path(self):
+        """compute_all with 30 bars exercises the ATR and all other success paths."""
+        try:
+            import ta  # noqa
+        except (ImportError, Exception):
+            pytest.skip("ta library not available")
+        engine = IndicatorEngine()
+        bars = _make_bars(30)
+        result = engine.compute_all(bars)
+        assert isinstance(result, dict)
+        assert "atr_14" in result
+        assert "rsi_14" in result
+        assert "volume_ratio" in result
+
+
+class TestRSIExceptionFallback:
+    """Line 50-51 — _rsi except path returns None-filled dict (already covered by ta=None test).
+    Explicitly verify with a mocked RSIIndicator that raises."""
+
+    def test_rsi_raises_returns_none(self, mocker):
+        import pandas as pd
+        engine = IndicatorEngine()
+        closes = pd.Series([100.0] * 30)
+        mocker.patch("ta.momentum.RSIIndicator", side_effect=ValueError("rsi error"))
+        result = engine._rsi(closes)
+        assert result == {"rsi_14": None}
+
+    def test_macd_raises_returns_none(self, mocker):
+        import pandas as pd
+        engine = IndicatorEngine()
+        closes = pd.Series([100.0] * 30)
+        mocker.patch("ta.trend.MACD", side_effect=ValueError("macd error"))
+        result = engine._macd(closes)
+        assert result == {"macd_line": None, "macd_signal": None, "macd_histogram": None}
+
+    def test_ema_raises_returns_none(self, mocker):
+        import pandas as pd
+        engine = IndicatorEngine()
+        closes = pd.Series([100.0] * 60)
+        mocker.patch("ta.trend.EMAIndicator", side_effect=ValueError("ema error"))
+        result = engine._ema(closes)
+        assert result == {"ema_20": None, "ema_50": None}
+
+    def test_atr_raises_returns_none(self, mocker):
+        import pandas as pd
+        engine = IndicatorEngine()
+        highs = pd.Series([101.0] * 30)
+        lows = pd.Series([99.0] * 30)
+        closes = pd.Series([100.0] * 30)
+        mocker.patch("ta.volatility.AverageTrueRange", side_effect=ValueError("atr error"))
+        result = engine._atr(highs, lows, closes)
+        assert result == {"atr_14": None}
