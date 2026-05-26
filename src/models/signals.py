@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from enum import Enum
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field, field_validator, model_validator
 import uuid
@@ -10,10 +10,6 @@ import hashlib
 import json
 
 from .trade import Direction
-
-if TYPE_CHECKING:
-    from .messages import AgentID
-
 
 class Trend(str, Enum):
     BULLISH = "BULLISH"
@@ -70,6 +66,9 @@ class MarketSignal(BaseModel):
     @field_validator("direction", mode="before")
     @classmethod
     def _normalise_direction(cls, v: object) -> str:
+        # str(SomeEnum.VALUE) returns "ClassName.VALUE" in Python 3.11+
+        if hasattr(v, "value"):
+            return str(v.value).upper()
         return str(v).upper()
     trend: Trend
     entry_zone: EntryZone
@@ -93,6 +92,9 @@ class TradeProposal(BaseModel):
     @field_validator("direction", mode="before")
     @classmethod
     def _normalise_direction(cls, v: object) -> str:
+        # str(SomeEnum.VALUE) returns "ClassName.VALUE" in Python 3.11+
+        if hasattr(v, "value"):
+            return str(v.value).upper()
         return str(v).upper()
     entry_type: str = "LIMIT"
     entry_price: float = Field(gt=0)

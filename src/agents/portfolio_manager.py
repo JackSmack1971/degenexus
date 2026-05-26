@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 import logging
-from datetime import datetime, timezone
 from typing import Optional, Callable
 
 from .base_agent import BaseAgent
 from ..core.portfolio import Portfolio
 from ..core.trade_lifecycle import TradeLifecycle
-from ..models.trade import Trade, Position, TradeState, CloseReason, Direction
+from ..models.trade import Trade, Position, TradeState, CloseReason
 from ..data.market_feed import MarketFeed
 from ..memory.trade_store import TradeStore
 

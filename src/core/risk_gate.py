@@ -7,7 +7,7 @@ If any hard rule fires → REJECTED, period.
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from typing import TYPE_CHECKING
 import math
@@ -152,7 +152,6 @@ class RiskGate:
         violations: list[str],
     ) -> "RiskDecision":
         from ..models.signals import RiskDecision, RiskDecisionType
-        from ..models.messages import AgentID
 
         return RiskDecision(
             proposal_id=proposal.proposal_id,
@@ -173,7 +172,6 @@ class RiskGate:
         sets approved=True/False based on contextual assessment.
         """
         from ..models.signals import RiskDecision, RiskDecisionType
-        from ..models.messages import AgentID
 
         return RiskDecision(
             proposal_id=proposal.proposal_id,
