@@ -1,5 +1,26 @@
 # PROGRESS
 
+## Session: 2026-05-26 (claude/autonomous-auditor-skills-cJDLY) — Audit Cycle 2
+
+### Issues Created This Session
+
+| # | Title | Template | Status |
+|---|-------|----------|--------|
+| #54 | PortfolioManagerAgent.monitor_cycle — 26 uncovered lines | test-gap | open |
+| #55 | IndicatorEngine — 39% miss rate; MACD/Bollinger/EMA/ATR untested | test-gap | open |
+| #56 | TradeStore audit tables — 16 uncovered lines | test-gap | open |
+| #57 | PortfolioManagerAgent.MarketFeed hard-instantiated — not injectable | architecture | open |
+| #58 | PerformanceAnalytics.compute — Radon D (CC=24) | tech-debt | open |
+
+### Test State (Cycle 2 baseline)
+- 266 passed, 2 skipped
+- Coverage: 90% overall
+- pyflakes: CLEAN
+- radon: worst method D(24) at performance.py:35
+- Branch: claude/autonomous-auditor-skills-cJDLY
+
+---
+
 ## Session: 2026-05-26 (claude/agent-issues-queue-DHSOl)
 
 ### Completed — All source:agent issues resolved (5/5)
