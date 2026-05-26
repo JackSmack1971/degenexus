@@ -143,6 +143,7 @@ class PortfolioManagerAgent(BaseAgent):
                 trade.symbol, shares_to_close, trade.shares, current_price, pnl,
             )
         self.lifecycle.transition(trade, TradeState.PARTIALLY_CLOSED)
+        trade.partial_pnl += pnl
         trade.shares -= shares_to_close
         self._emit(
             "PARTIAL_TP",
@@ -151,7 +152,7 @@ class PortfolioManagerAgent(BaseAgent):
         )
 
     def _get_partial_pnl(self, trade: Trade) -> float:
-        return 0.0
+        return trade.partial_pnl
 
     def open_trades_summary(self) -> str:
         if not self._open_trades:

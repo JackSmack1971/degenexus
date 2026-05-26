@@ -121,6 +121,7 @@ class Trade(BaseModel):
     close_price: float = 0.0
     close_shares: int = 0
     close_reason: Optional[CloseReason] = None
+    partial_pnl: float = 0.0
     realized_pnl: float = 0.0
     realized_pnl_pct: float = 0.0
 
