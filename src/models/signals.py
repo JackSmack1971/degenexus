@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from enum import Enum
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field, field_validator, model_validator
 import uuid
@@ -10,10 +10,6 @@ import hashlib
 import json
 
 from .trade import Direction
-
-if TYPE_CHECKING:
-    from .messages import AgentID
-
 
 class Trend(str, Enum):
     BULLISH = "BULLISH"

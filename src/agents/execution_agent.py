@@ -6,12 +6,11 @@ Cannot execute without a valid RiskDecision from the ExecutionGate.
 from __future__ import annotations
 import logging
 import re
-from datetime import datetime, timezone
 from typing import Optional
 
 from .base_agent import BaseAgent
 from ..models.signals import TradeProposal, RiskDecision
-from ..models.trade import Trade, Fill, TradeState, Direction, OrderType, CloseReason
+from ..models.trade import Trade, Fill, TradeState, Direction, OrderType
 from ..core.execution_gate import ExecutionGate, TradeBlockedError
 from ..core.slippage import SlippageModel, select_order_type
 from ..core.trade_lifecycle import TradeLifecycle

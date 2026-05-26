@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 from datetime import datetime, timezone
-from typing import Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import os
 
 from ..models.trade import Position, Trade

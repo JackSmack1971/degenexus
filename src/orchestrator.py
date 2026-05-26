@@ -18,8 +18,7 @@ from .agents.portfolio_manager import PortfolioManagerAgent
 from .core.portfolio import Portfolio
 from .core.risk_gate import RiskGate
 from .models.signals import MarketSignal, TradeProposal, RiskDecision
-from .models.trade import Trade, Position, Direction
-from .models.messages import AgentID
+from .models.trade import Position
 from .memory.trade_store import TradeStore
 from .memory.performance import PerformanceAnalytics
 from .memory.context_injector import ContextInjector

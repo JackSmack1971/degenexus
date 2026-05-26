@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 from ..core.settings import Settings
 
@@ -86,7 +86,6 @@ class BaseAgent:
         try:
             from src.core.openrouter_client import (
                 OpenRouterClient,
-                OpenRouterError,
                 DEFAULT_MODEL,
             )
             model = settings.openrouter_model or DEFAULT_MODEL

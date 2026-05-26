@@ -1,7 +1,6 @@
 """Technical indicator computation using the `ta` library."""
 
 from __future__ import annotations
-from typing import Optional
 import logging
 
 logger = logging.getLogger(__name__)

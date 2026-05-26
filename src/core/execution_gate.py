@@ -9,7 +9,6 @@ then swapping in proposal B and reusing the old approval.
 """
 
 from __future__ import annotations
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

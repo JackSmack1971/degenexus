@@ -3,15 +3,12 @@
 from __future__ import annotations
 import time
 from datetime import datetime, timezone
-from typing import Optional
-
 from rich.console import Console
 from rich.layout import Layout
 from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
-from rich.style import Style
 from rich import box
 
 from .trade_feed import TradeFeed

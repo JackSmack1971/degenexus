@@ -6,12 +6,8 @@ This agent provides contextual reasoning AFTER hard rules pass.
 
 from __future__ import annotations
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import Optional
-
 from .base_agent import BaseAgent
 from ..models.signals import TradeProposal, RiskDecision, RiskDecisionType
-from ..models.messages import AgentID
 from ..core.risk_gate import RiskGate
 
 logger = logging.getLogger(__name__)
