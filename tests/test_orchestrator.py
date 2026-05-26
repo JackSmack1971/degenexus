@@ -1,9 +1,9 @@
-"""Tests for orchestrator trust-boundary handling."""
+"""Tests for orchestrator trust-boundary handling and signal gating."""
 
 from datetime import datetime, timedelta, timezone
 
 from src.orchestrator import TradingOrchestrator
-from src.models.signals import RiskDecision, RiskDecisionType
+from src.models.signals import DataQuality, RiskDecision, RiskDecisionType
 
 
 def test_counter_challenge_reuses_real_open_positions_summary(valid_signal, valid_proposal):
@@ -44,3 +44,28 @@ def test_counter_challenge_reuses_real_open_positions_summary(valid_signal, vali
     assert opened is False
     assert captured_summaries == [open_summary, open_summary]
     assert attacker_reasoning not in captured_summaries[1]
+
+
+def test_ceo_triage_rejects_non_live_signals_before_llm(valid_signal):
+    orchestrator = TradingOrchestrator(watchlist=["AAPL"])
+    valid_signal.data_quality = DataQuality.SYNTHETIC
+
+    ceo_calls = []
+
+    def should_not_run(*args, **kwargs):
+        ceo_calls.append((args, kwargs))
+        return "PROCEED"
+
+    events = []
+    orchestrator.event_callback = events.append
+    orchestrator.ceo.triage_signal = should_not_run
+
+    selected = orchestrator._phase_ceo_triage([valid_signal])
+
+    assert selected == []
+    assert ceo_calls == []
+    assert any(
+        event.event_type == "CEO_REJECTED_SIGNAL"
+        and "SYNTHETIC" in event.content
+        for event in events
+    )

@@ -17,6 +17,7 @@ Rules:
 - You cannot override the Risk Manager's veto — it is system-enforced.
 - You may issue one counter-challenge to Risk Manager per trade cycle.
 - Final decision: PROCEED or ABORT with reasoning.
+- Any signal with data_quality SYNTHETIC or STALE: ABORT immediately.
 
 Signal quality guidance (for triage decisions):
 - Confidence >= 0.70: strong signal — proceed unless clear red flags.
@@ -50,6 +51,7 @@ SIGNAL:
   Symbol: {signal.symbol}
   Direction: {signal.direction}
   Trend: {signal.trend.value}
+  Data Quality: {signal.data_quality.value}
   Confidence: {signal.confidence:.2f}
   Signal Strength: {signal.signal_strength.value}
   Reasoning: {signal.reasoning}
