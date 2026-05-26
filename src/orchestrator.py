@@ -69,6 +69,7 @@ class TradingOrchestrator:
             self.portfolio,
             context,
             event_callback=self._pm_event,
+            trade_store=self.trade_store,
         )
 
         self._cycle_count = 0

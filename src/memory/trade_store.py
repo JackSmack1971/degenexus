@@ -124,6 +124,9 @@ class TradeStore:
                     state=excluded.state,
                     fill_price=excluded.fill_price,
                     slippage_pct=excluded.slippage_pct,
+                    shares=excluded.shares,
+                    stop_loss=excluded.stop_loss,
+                    take_profit=excluded.take_profit,
                     close_price=excluded.close_price,
                     close_reason=excluded.close_reason,
                     partial_pnl=excluded.partial_pnl,
@@ -159,6 +162,14 @@ class TradeStore:
                 "closed_at": trade.closed_at.isoformat() if trade.closed_at else None,
                 "created_at": trade.created_at.isoformat(),
             })
+
+    def get_partially_closed_trade_ids(self) -> list[str]:
+        """Return trade_ids of all trades currently in PARTIALLY_CLOSED state."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT trade_id FROM trades WHERE state='PARTIALLY_CLOSED'"
+            ).fetchall()
+            return [r["trade_id"] for r in rows]
 
     def get_closed_trades(self, limit: int = 100) -> list[dict]:
         with self._connect() as conn:

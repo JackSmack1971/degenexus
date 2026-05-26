@@ -4,10 +4,12 @@ from __future__ import annotations
 from enum import Enum
 from typing import Optional, TYPE_CHECKING
 from datetime import datetime, timezone
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 import uuid
 import hashlib
 import json
+
+from .trade import Direction
 
 if TYPE_CHECKING:
     from .messages import AgentID
@@ -63,7 +65,12 @@ class MarketSignal(BaseModel):
     signal_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     symbol: str
     timeframe: str = "1d"
-    direction: str
+    direction: Direction
+
+    @field_validator("direction", mode="before")
+    @classmethod
+    def _normalise_direction(cls, v: object) -> str:
+        return str(v).upper()
     trend: Trend
     entry_zone: EntryZone
     indicators: IndicatorSnapshot
@@ -81,7 +88,12 @@ class TradeProposal(BaseModel):
     proposal_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     signal_id: str
     symbol: str
-    direction: str
+    direction: Direction
+
+    @field_validator("direction", mode="before")
+    @classmethod
+    def _normalise_direction(cls, v: object) -> str:
+        return str(v).upper()
     entry_type: str = "LIMIT"
     entry_price: float = Field(gt=0)
     stop_loss: float = Field(gt=0)
@@ -117,15 +129,12 @@ class TradeProposal(BaseModel):
 
     @model_validator(mode="after")
     def validate_trade_levels(self) -> "TradeProposal":
-        direction = self.direction.upper()
-        if direction == "LONG":
+        if self.direction == Direction.LONG:
             if not (self.stop_loss < self.entry_price < self.take_profit):
                 raise ValueError("LONG proposals must satisfy stop_loss < entry_price < take_profit")
-        elif direction == "SHORT":
+        else:
             if not (self.stop_loss > self.entry_price > self.take_profit):
                 raise ValueError("SHORT proposals must satisfy stop_loss > entry_price > take_profit")
-        else:
-            raise ValueError("direction must be LONG or SHORT")
         return self
 
 
