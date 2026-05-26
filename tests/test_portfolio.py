@@ -85,6 +85,30 @@ class TestOpenPosition:
         with pytest.raises(ValueError, match="Insufficient cash"):
             p.open_position(pos)
 
+    def test_rejects_duplicate_position_id_without_deducting_cash(self, portfolio, open_position):
+        portfolio.open_position(open_position)
+        cash_before = portfolio.cash
+
+        duplicate = Position(
+            position_id=open_position.position_id,
+            trade_id=str(uuid.uuid4()),
+            symbol="MSFT",
+            direction=Direction.LONG,
+            shares=5,
+            entry_price=200.0,
+            current_price=200.0,
+            stop_loss=195.0,
+            take_profit=210.0,
+        )
+
+        with pytest.raises(ValueError, match="already open"):
+            portfolio.open_position(duplicate)
+
+        assert portfolio.cash == cash_before
+        stored = portfolio.open_positions[open_position.position_id]
+        assert stored.symbol == open_position.symbol
+        assert stored.shares == open_position.shares
+
 
 class TestUpdatePrice:
     def test_unrealized_pnl_increases_with_price(self, portfolio, open_position):
