@@ -143,6 +143,13 @@ class TradingOrchestrator:
         open_count = self.portfolio.open_positions_count
         selected = []
         for signal in signals[:3]:
+            if signal.data_quality.value != "LIVE":
+                self._emit(
+                    "CEO_REJECTED_SIGNAL",
+                    "CEO",
+                    f"{signal.symbol} signal rejected at triage due to {signal.data_quality.value} data quality",
+                )
+                continue
             decision = self.ceo.triage_signal(signal, open_count)
             if decision == "PROCEED":
                 selected.append(signal)
