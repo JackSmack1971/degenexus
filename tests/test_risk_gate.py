@@ -10,6 +10,8 @@ def check_hard_rules(risk_gate, proposal, **overrides):
         portfolio_value=10_000.0,
         open_positions_count=0,
         total_exposure_usd=0.0,
+        consecutive_losses=0,
+        signal_confidence=1.0,
     )
     defaults.update(overrides)
     return risk_gate.check_hard_rules(proposal, **defaults)
@@ -72,47 +74,41 @@ class TestExposureLimit:
 
 
 class TestConsecutiveLossRule:
-    """Consecutive losses are now enforced by the Risk Manager LLM, not the hard gate."""
+    """Consecutive losses are enforced deterministically by the hard gate."""
 
-    def test_not_a_hard_gate_violation_at_three(self, risk_gate, valid_proposal):
-        # Three losses in a row is policy guidance in the Risk Manager prompt,
-        # not a system-level veto. Hard gate should not fire for this.
-        violations = check_hard_rules(risk_gate, valid_proposal)
-        assert not any("CONSECUTIVE_LOSSES" in v for v in violations)
+    def test_passes_below_limit(self, risk_gate, valid_proposal):
+        violations = check_hard_rules(risk_gate, valid_proposal, consecutive_losses=2)
+        assert not any("CONSECUTIVE_LOSS_LIMIT" in v for v in violations)
 
-    def test_not_a_hard_gate_violation_at_ten(self, risk_gate, valid_proposal):
-        violations = check_hard_rules(risk_gate, valid_proposal)
-        assert not any("CONSECUTIVE_LOSSES" in v for v in violations)
+    def test_fails_at_limit(self, risk_gate, valid_proposal):
+        violations = check_hard_rules(risk_gate, valid_proposal, consecutive_losses=3)
+        assert any("CONSECUTIVE_LOSS_LIMIT" in v for v in violations)
 
 
 class TestRiskRewardRule:
-    """Min R:R is now enforced contextually by the Risk Manager LLM, not the hard gate."""
+    """Min R:R is enforced deterministically by the hard gate."""
 
-    def test_not_a_hard_gate_violation_below_1_5(self, risk_gate, valid_proposal):
-        # R:R below 1.5 is a policy threshold in the Risk Manager prompt,
-        # not a system-level veto.
+    def test_fails_below_minimum(self, risk_gate, valid_proposal):
         valid_proposal.risk_reward_ratio = 1.4
         violations = check_hard_rules(risk_gate, valid_proposal)
-        assert not any("RISK_REWARD_TOO_LOW" in v for v in violations)
+        assert any("RISK_REWARD_BELOW_MIN" in v for v in violations)
 
-    def test_not_a_hard_gate_violation_at_zero_rr(self, risk_gate, valid_proposal):
-        valid_proposal.risk_reward_ratio = 0.1
+    def test_passes_at_minimum(self, risk_gate, valid_proposal):
+        valid_proposal.risk_reward_ratio = 1.5
         violations = check_hard_rules(risk_gate, valid_proposal)
-        assert not any("RISK_REWARD_TOO_LOW" in v for v in violations)
+        assert not any("RISK_REWARD_BELOW_MIN" in v for v in violations)
 
 
 class TestConfidenceRule:
-    """Min confidence is now enforced contextually by the Risk Manager LLM, not the hard gate."""
+    """Min confidence is enforced deterministically by the hard gate."""
 
-    def test_not_a_hard_gate_violation_at_50pct(self, risk_gate, valid_proposal):
-        # Confidence 0.50 is a policy threshold in the Risk Manager prompt,
-        # not a system-level veto.
-        violations = check_hard_rules(risk_gate, valid_proposal)
-        assert not any("LOW_CONFIDENCE" in v for v in violations)
+    def test_fails_below_minimum(self, risk_gate, valid_proposal):
+        violations = check_hard_rules(risk_gate, valid_proposal, signal_confidence=0.50)
+        assert any("CONFIDENCE_BELOW_MIN" in v for v in violations)
 
-    def test_not_a_hard_gate_violation_at_zero_confidence(self, risk_gate, valid_proposal):
-        violations = check_hard_rules(risk_gate, valid_proposal)
-        assert not any("LOW_CONFIDENCE" in v for v in violations)
+    def test_passes_at_minimum(self, risk_gate, valid_proposal):
+        violations = check_hard_rules(risk_gate, valid_proposal, signal_confidence=0.55)
+        assert not any("CONFIDENCE_BELOW_MIN" in v for v in violations)
 
 
 class TestInvalidFieldRule:
@@ -129,13 +125,15 @@ class TestInvalidFieldRule:
 
 class TestMultipleViolations:
     def test_collects_all_hard_violations(self, risk_gate, valid_proposal):
-        # Remaining hard gates: MAX_LOSS, POSITION_LIMIT, EXPOSURE_LIMIT, INVALID_LEVELS, INVALID_SIZE
         valid_proposal.max_loss_usd = 500.0
+        valid_proposal.risk_reward_ratio = 1.0
         violations = check_hard_rules(
             risk_gate, valid_proposal,
             open_positions_count=5,
+            consecutive_losses=3,
+            signal_confidence=0.40,
         )
-        assert len(violations) >= 2  # MAX_LOSS + POSITION_LIMIT
+        assert len(violations) >= 5
 
     def test_rejection_contains_all_violations(self, risk_gate, valid_proposal):
         valid_proposal.max_loss_usd = 500.0
