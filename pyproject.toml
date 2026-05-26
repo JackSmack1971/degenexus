@@ -18,3 +18,11 @@ python_functions = ["test_*"]
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*"]
+
+[tool.coverage.run]
+omit = [
+    "src/display/*",
+    "src/main.py",
+    "src/get-model-list.py",
+    "src/orchestrator.py",
+]

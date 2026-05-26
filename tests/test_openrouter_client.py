@@ -176,6 +176,7 @@ class TestBaseAgentProviderSwitching:
             assert mock_openai_cls.call_args.kwargs["timeout"] == 12.5
 
     def test_anthropic_provider_is_default(self, monkeypatch):
+        pytest.importorskip("anthropic")
         monkeypatch.delenv("LLM_PROVIDER", raising=False)
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
         monkeypatch.setenv("LLM_TIMEOUT_SECONDS", "9")
