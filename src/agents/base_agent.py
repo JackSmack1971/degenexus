@@ -3,9 +3,10 @@
 from __future__ import annotations
 import json
 import logging
-import os
 from typing import Any, Optional
 from pydantic import BaseModel
+
+from ..core.settings import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -37,28 +38,29 @@ class BaseAgent:
           "anthropic" | "openrouter" | "fallback"
         and client is the corresponding SDK object (or None for fallback).
         """
-        provider = os.getenv("LLM_PROVIDER", "anthropic").lower().strip()
+        settings = Settings()
+        provider = settings.llm_provider.lower().strip()
 
         if provider == "openrouter":
-            return self._init_openrouter()
+            return self._init_openrouter(settings)
 
         # Default: Anthropic
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
+        api_key = settings.anthropic_api_key
+        if api_key is None:
             logger.warning(
                 "%s: ANTHROPIC_API_KEY not set — will use deterministic fallback", self.agent_id
             )
             return "fallback", None
         try:
             import anthropic
-            return "anthropic", anthropic.Anthropic(api_key=api_key)
+            return "anthropic", anthropic.Anthropic(api_key=api_key.get_secret_value())
         except ImportError:
             logger.error("anthropic package not installed")
             return "fallback", None
 
-    def _init_openrouter(self) -> tuple[str, Any]:
-        api_key = os.getenv("OPENROUTER_API_KEY")
-        if not api_key:
+    def _init_openrouter(self, settings: Settings) -> tuple[str, Any]:
+        api_key = settings.openrouter_api_key
+        if api_key is None:
             logger.warning(
                 "%s: OPENROUTER_API_KEY not set — will use deterministic fallback", self.agent_id
             )
@@ -69,8 +71,11 @@ class BaseAgent:
                 OpenRouterError,
                 DEFAULT_MODEL,
             )
-            model = os.getenv("OPENROUTER_MODEL", DEFAULT_MODEL)
-            client = OpenRouterClient(api_key=api_key, model=model)
+            model = settings.openrouter_model or DEFAULT_MODEL
+            client = OpenRouterClient(
+                api_key=api_key.get_secret_value(),
+                model=model,
+            )
             logger.info("%s: using OpenRouter model=%s", self.agent_id, client.model)
             return "openrouter", client
         except Exception as exc:
