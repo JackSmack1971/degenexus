@@ -178,3 +178,81 @@ class TestSymbolStats:
         # Only one symbol → best==worst, should not be output separately (worst != best check in injector)
         assert stats.best_symbol == "AAPL"
         assert stats.worst_symbol == "AAPL"
+
+
+class TestClassifyTrades:
+    """Unit tests for _classify_trades — covers breakeven bug fix (pnl=0.0 excluded)."""
+
+    def test_breakeven_trade_excluded_from_wins_and_losses(self):
+        """pnl=0.0 must not be counted as a win or loss — previously broken (was counted as loss)."""
+        analytics = PerformanceAnalytics()
+        trades = [
+            {"realized_pnl": 100.0, "state": "CLOSED"},
+            {"realized_pnl": 0.0, "state": "CLOSED"},
+            {"realized_pnl": -50.0, "state": "CLOSED"},
+        ]
+        wins, losses = analytics._classify_trades(trades)
+        assert len(wins) == 1
+        assert len(losses) == 1
+
+    def test_all_breakeven_returns_empty_wins_and_losses(self):
+        analytics = PerformanceAnalytics()
+        trades = [{"realized_pnl": 0.0}, {"realized_pnl": 0.0}]
+        wins, losses = analytics._classify_trades(trades)
+        assert wins == []
+        assert losses == []
+
+    def test_none_pnl_treated_as_zero(self):
+        analytics = PerformanceAnalytics()
+        trades = [{"realized_pnl": None}]
+        wins, losses = analytics._classify_trades(trades)
+        assert wins == []
+        assert losses == []
+
+    def test_breakeven_does_not_inflate_loss_count_in_compute(self):
+        """Regression: breakeven trade via compute() must not appear in loss_count."""
+        analytics = PerformanceAnalytics()
+        trades = [
+            {"symbol": "A", "state": "CLOSED", "realized_pnl": 100.0,
+             "risk_reward_ratio": 2.0, "closed_at": "2026-01-01"},
+            {"symbol": "B", "state": "CLOSED", "realized_pnl": 0.0,
+             "risk_reward_ratio": 0.0, "closed_at": "2026-01-02"},
+        ]
+        stats = analytics.compute(trades)
+        assert stats.win_count == 1
+        assert stats.loss_count == 0
+        assert stats.closed_trades == 2
+
+
+class TestComputeTotals:
+    """Unit tests for _compute_totals helper."""
+
+    def test_total_pnl_is_sum_of_all_closed(self):
+        analytics = PerformanceAnalytics()
+        trades = [
+            {"realized_pnl": 100.0, "risk_reward_ratio": 2.0},
+            {"realized_pnl": -40.0, "risk_reward_ratio": 1.0},
+        ]
+        total_pnl, avg_rr = analytics._compute_totals(trades)
+        assert total_pnl == pytest.approx(60.0)
+
+    def test_avg_rr_is_mean_of_ratios(self):
+        analytics = PerformanceAnalytics()
+        trades = [
+            {"realized_pnl": 50.0, "risk_reward_ratio": 2.0},
+            {"realized_pnl": 50.0, "risk_reward_ratio": 4.0},
+        ]
+        _, avg_rr = analytics._compute_totals(trades)
+        assert avg_rr == pytest.approx(3.0)
+
+    def test_missing_rr_treated_as_zero(self):
+        analytics = PerformanceAnalytics()
+        trades = [{"realized_pnl": 50.0}]
+        _, avg_rr = analytics._compute_totals(trades)
+        assert avg_rr == pytest.approx(0.0)
+
+    def test_none_pnl_treated_as_zero_in_total(self):
+        analytics = PerformanceAnalytics()
+        trades = [{"realized_pnl": None, "risk_reward_ratio": 2.0}]
+        total_pnl, _ = analytics._compute_totals(trades)
+        assert total_pnl == pytest.approx(0.0)

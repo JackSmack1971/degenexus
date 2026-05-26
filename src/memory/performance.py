@@ -40,29 +40,16 @@ class PerformanceAnalytics:
         if not closed:
             return PerformanceStats(total_trades=len(trades))
 
-        wins = [t for t in closed if (t.get("realized_pnl") or 0) > 0]
-        losses = [t for t in closed if (t.get("realized_pnl") or 0) <= 0]
-
+        wins, losses = self._classify_trades(closed)
         win_count = len(wins)
         loss_count = len(losses)
         total_closed = len(closed)
 
         win_rate = win_count / total_closed if total_closed > 0 else 0.0
-
-        avg_win = sum(t["realized_pnl"] for t in wins) / win_count if wins else 0.0
-        avg_loss = abs(sum(t["realized_pnl"] for t in losses) / loss_count) if losses else 0.0
-
-        gross_profit = sum(t["realized_pnl"] for t in wins)
-        gross_loss = abs(sum(t["realized_pnl"] for t in losses))
-        profit_factor = gross_profit / gross_loss if gross_loss > 0 else float("inf")
-
-        total_pnl = sum(t.get("realized_pnl") or 0 for t in closed)
-
-        rr_values = [t.get("risk_reward_ratio") or 0 for t in closed]
-        avg_rr = sum(rr_values) / len(rr_values) if rr_values else 0.0
+        avg_win, avg_loss, profit_factor = self._compute_pnl_averages(wins, losses)
+        total_pnl, avg_rr = self._compute_totals(closed)
 
         current_streak = self._compute_streak(closed)
-
         symbol_stats = self._compute_symbol_stats(closed)
         best_symbol = max(symbol_stats, key=lambda s: symbol_stats[s]["pnl"], default="")
         worst_symbol = min(symbol_stats, key=lambda s: symbol_stats[s]["pnl"], default="")
@@ -83,6 +70,30 @@ class PerformanceAnalytics:
             worst_symbol=worst_symbol,
             symbol_stats=symbol_stats,
         )
+
+    def _classify_trades(self, closed: list[dict]) -> tuple[list, list]:
+        """Split closed trades into wins (pnl > 0) and losses (pnl < 0). Breakeven excluded."""
+        wins = [t for t in closed if (t.get("realized_pnl") or 0) > 0]
+        losses = [t for t in closed if (t.get("realized_pnl") or 0) < 0]
+        return wins, losses
+
+    def _compute_pnl_averages(
+        self, wins: list, losses: list
+    ) -> tuple[float, float, float]:
+        """Return (avg_win, avg_loss, profit_factor) from pre-classified win/loss lists."""
+        avg_win = sum(t["realized_pnl"] for t in wins) / len(wins) if wins else 0.0
+        avg_loss = abs(sum(t["realized_pnl"] for t in losses) / len(losses)) if losses else 0.0
+        gross_profit = sum(t["realized_pnl"] for t in wins)
+        gross_loss = abs(sum(t["realized_pnl"] for t in losses))
+        profit_factor = gross_profit / gross_loss if gross_loss > 0 else float("inf")
+        return avg_win, avg_loss, profit_factor
+
+    def _compute_totals(self, closed: list[dict]) -> tuple[float, float]:
+        """Return (total_pnl, avg_risk_reward)."""
+        total_pnl = sum(t.get("realized_pnl") or 0 for t in closed)
+        rr_values = [t.get("risk_reward_ratio") or 0 for t in closed]
+        avg_rr = sum(rr_values) / len(rr_values) if rr_values else 0.0
+        return total_pnl, avg_rr
 
     def _compute_streak(self, closed: list[dict]) -> int:
         """Positive = win streak; negative = loss streak."""
