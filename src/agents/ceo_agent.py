@@ -44,16 +44,19 @@ class CEOAgent(BaseAgent):
         open_positions_count: int,
     ) -> str:
         """Evaluate signal quality. Returns 'PROCEED' or 'ABORT'."""
+        safe_reasoning = self._sanitize_external_text(signal.reasoning)
+        safe_market_context = self._sanitize_external_text(signal.market_context)
         user_msg = f"""Triage this analyst signal:
 
 SIGNAL:
+  {self.TRUST_BOUNDARY_NOTICE}
   Symbol: {signal.symbol}
   Direction: {signal.direction}
   Trend: {signal.trend.value}
   Confidence: {signal.confidence:.2f}
   Signal Strength: {signal.signal_strength.value}
-  Reasoning: {signal.reasoning}
-  Market Context: {signal.market_context}
+  Reasoning: {safe_reasoning}
+  Market Context: {safe_market_context}
 
 PORTFOLIO STATE:
   Open Positions: {open_positions_count}
@@ -76,12 +79,15 @@ Output JSON: {{"decision": "PROCEED" or "ABORT", "reasoning": "..."}}"""
         Hard rule violations are never challengeable — caller must enforce this.
         Returns True to issue counter-challenge.
         """
+        safe_reasoning = self._sanitize_external_text(signal.reasoning)
+        safe_risk_reasoning = self._sanitize_external_text(risk_decision.risk_reasoning)
         user_msg = f"""The Risk Manager has rejected a trade. Should you issue a counter-challenge?
 
 SIGNAL:
+  {self.TRUST_BOUNDARY_NOTICE}
   Symbol: {signal.symbol}
   Confidence: {signal.confidence:.2f}
-  Reasoning: {signal.reasoning}
+  Reasoning: {safe_reasoning}
 
 PROPOSAL:
   Direction: {proposal.direction}
@@ -90,7 +96,7 @@ PROPOSAL:
 
 RISK REJECTION:
   Risk Score: {risk_decision.risk_score:.1f}/10
-  Reasoning: {risk_decision.risk_reasoning}
+  Reasoning: {safe_risk_reasoning}
 
 Output JSON: {{"decision": "CHALLENGE" or "ACCEPT", "reasoning": "..."}}"""
 
