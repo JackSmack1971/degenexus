@@ -68,11 +68,14 @@ class IndicatorEngine:
 
     def _bollinger(self, closes) -> dict:
         try:
+            import math
             import ta.volatility as vol
             bb = vol.BollingerBands(close=closes, window=20, window_dev=2)
             upper = bb.bollinger_hband().iloc[-1]
             lower = bb.bollinger_lband().iloc[-1]
             mid = bb.bollinger_mavg().iloc[-1]
+            if math.isnan(upper) or math.isnan(lower) or math.isnan(mid):
+                return {"bb_upper": None, "bb_lower": None, "bb_position": None}
             price = float(closes.iloc[-1])
 
             if price >= upper:
