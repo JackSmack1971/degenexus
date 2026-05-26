@@ -5,6 +5,8 @@ import logging
 import math
 from typing import Optional
 
+from pydantic import ValidationError
+
 from .base_agent import BaseAgent
 from ..models.signals import MarketSignal, TradeProposal
 
@@ -132,7 +134,7 @@ time_in_force, expiry_bars, reasoning"""
             )
             proposal.proposal_hash = proposal.compute_hash()
             return proposal
-        except (KeyError, ValueError, TypeError) as exc:
+        except (KeyError, TypeError, ValueError, ValidationError) as exc:
             logger.error("Failed to parse quant response: %s — response: %s", exc, response)
             return None
 
