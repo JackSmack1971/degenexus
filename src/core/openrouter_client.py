@@ -57,8 +57,14 @@ class OpenRouterClient:
     identical to the Anthropic path in BaseAgent.
     """
 
-    def __init__(self, api_key: str, model: str = DEFAULT_MODEL) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model: str = DEFAULT_MODEL,
+        timeout: float = 30.0,
+    ) -> None:
         self.model = validate_model(model)
+        self.timeout = timeout
         if OpenAI is None:
             raise OpenRouterError(
                 "openai package not installed — run: pip install openai>=1.0.0"
@@ -66,6 +72,7 @@ class OpenRouterClient:
         self._client = OpenAI(
             base_url=_OPENROUTER_BASE_URL,
             api_key=api_key,
+            timeout=timeout,
         )
         logger.info("OpenRouterClient initialised: model=%s", self.model)
 

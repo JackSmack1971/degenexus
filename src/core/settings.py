@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     )
 
     llm_provider: str = "anthropic"
+    llm_timeout_seconds: float = 30.0
     anthropic_api_key: SecretStr | None = None
     openrouter_api_key: SecretStr | None = None
     openrouter_model: str = DEFAULT_MODEL
