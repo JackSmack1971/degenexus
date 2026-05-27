@@ -3,7 +3,7 @@
 ## System: DegenExus — AI Trading Debate Cycle
 
 ### 8-Phase Cycle (TradingOrchestrator)
-SCAN → CEO_TRIAGE → QUANT_DESIGN → RISK_EVALUATE → CEO_FINAL → EXECUTE → MONITOR → LEARN
+SCAN → CEO_TRIAGE → QUANT_DESIGN → RISK_HARD_GATE → RISK_EVALUATE → CEO_FINAL → EXECUTE → MONITOR
 
 ### Source of Truth Locations
 - Capital / positions: `Portfolio` (in-memory, rebuilt from scratch on restart — no persistence)
