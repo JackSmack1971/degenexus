@@ -1,5 +1,58 @@
 # PROGRESS
 
+## Session: 2026-05-27 (claude/forensic-fdd-fsv-cycle-7pmmt) — FDD+FSV Full Cycle Complete
+
+### All 5 Open Forensic Issues Resolved — PRs Created
+
+| # | Issue | Branch | PR | Tests | Coverage |
+|---|-------|--------|----|-------|----------|
+| #66 | ta dependency CI-blocking (11 broken tests) | codex/issue-66 | [#72](https://github.com/JackSmack1971/degenexus/pull/72) | 333→344 | setuptools<65 fix |
+| #67 | orchestrator.py:99 AttributeError crash | codex/issue-67 | [#73](https://github.com/JackSmack1971/degenexus/pull/73) | 344→348 | crash path guarded |
+| #68 | mypy violations in execution_agent + data_analyst | codex/issue-68 | [#74](https://github.com/JackSmack1971/degenexus/pull/74) | 344→348 | 2 mypy errors fixed |
+| #69 | DataAnalystAgent DI — analyze() untestable | codex/issue-69 | [#75](https://github.com/JackSmack1971/degenexus/pull/75) | 344→360 | 81%→100% |
+| #70 | .claude/rules + .claude/imports missing | codex/issue-70 | [#76](https://github.com/JackSmack1971/degenexus/pull/76) | 344→344 | doctrine complete |
+
+### FSV Aggregate Results
+
+**Pre-session baseline:** 344 passed, 0 failed (with ta installed via setuptools downgrade)  
+**Per-branch post-fix:**
+- codex/issue-66: 344 passed (11 tests converted to sys.modules injection)
+- codex/issue-67: 348 passed (+4 CloseReason regression tests)
+- codex/issue-68: 348 passed (+4 type safety tests)
+- codex/issue-69: 360 passed (+16 DI + analyze() + _build_bar_summary() tests)
+- codex/issue-70: 344 passed (0 regressions, config-only fix)
+
+**All branches independently verified — zero regressions.**
+
+### Key Changes Made This Session
+
+**#66 — CI Fix:**
+- `requirements.txt`: `setuptools<65` before `ta>=0.11.0`
+- `tests/test_indicators.py`: `_ta_patch()` helper + sys.modules injection in all 11 failing tests
+
+**#67 — Runtime Safety:**
+- `src/orchestrator.py:99`: `ct.close_reason.value if ct.close_reason else 'UNKNOWN'`
+- `tests/test_orchestrator.py`: `TestOrchestratorCloseReasonGuard` (4 tests)
+
+**#68 — Type Safety:**
+- `src/agents/execution_agent.py:48`: `assert risk_decision is not None` after gate.validate()
+- `src/agents/data_analyst.py:119`: `Direction(str(...).upper())` explicit coercion
+
+**#69 — Architecture:**
+- `src/agents/data_analyst.py`: `feed/engine` keyword-only DI params (same pattern as #57)
+- `src/agents/data_analyst.py`: Fixed `_build_bar_summary()` f-string empty-bars guard
+- `tests/test_data_analyst.py`: Replaced `__new__` workaround; +16 new tests
+
+**#70 — Config:**
+- `.claude/rules/01-security.md`: STRIDE threat model for this system
+- `.claude/imports/doctrine-summary.md`: Turn-start operational checklist
+
+### Handoff State
+
+All 5 open forensic issues have open PRs. No unhandled forensic issues remain. Repository is clean for PR review.
+
+---
+
 ## Session: 2026-05-26 (claude/autonomous-auditor-skills-cJDLY) — Audit Cycle 2
 
 ### Issues Created This Session
