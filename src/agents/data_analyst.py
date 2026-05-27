@@ -6,6 +6,7 @@ from typing import Optional
 
 from .base_agent import BaseAgent
 from ..models.signals import MarketSignal, IndicatorSnapshot, EntryZone, Trend, SignalStrength, DataQuality
+from ..models.trade import Direction
 from ..data.market_feed import MarketFeed, OHLCVBar
 from ..data.indicators import IndicatorEngine
 
@@ -116,7 +117,7 @@ Generate a complete MarketSignal JSON for this symbol. Include:
 
             return MarketSignal(
                 symbol=symbol,
-                direction=str(response.get("direction", "LONG")).upper(),
+                direction=Direction(str(response.get("direction", "LONG")).upper()),
                 trend=Trend(str(response.get("trend", "NEUTRAL")).upper()),
                 entry_zone=entry_zone,
                 indicators=indicators,

@@ -113,3 +113,18 @@ def test_execute_clamps_minimum_shares_after_reduction(valid_proposal, valid_ris
     assert trade is not None
     assert fill is not None
     assert trade.shares == 1
+
+
+def test_execute_with_none_risk_decision_returns_block_reason(valid_proposal):
+    """risk_decision=None must be caught by gate.validate(), not reach _apply_conditions."""
+    agent = ExecutionAgent()
+
+    trade, fill, error = agent.execute(
+        proposal=valid_proposal,
+        risk_decision=None,
+        current_price=valid_proposal.entry_price,
+    )
+
+    assert trade is None
+    assert fill is None
+    assert error is not None
