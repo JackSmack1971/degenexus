@@ -1,28 +1,33 @@
 {
-  "phase": "audit-only-fdd-fsv",
+  "phase": "audit",
   "repo": "JackSmack1971/degenexus",
-  "head_sha": "324ea35f79bb024b1ddc2c296145ba0a648cd99d",
+  "head_sha": "5bfa618b587bf7c06646457910fd84b7f489bab2",
   "commands_run": [
+    "rg --files -g AGENTS.md",
+    "find .. -name AGENTS.md -print",
+    "git branch --show-current; git rev-parse HEAD; git status --short",
+    "python3 --version; pytest --version; ruff --version; mypy --version",
+    "test -d .claude/rules; test -d .claude/imports",
     "sed -n on CLAUDE.md and memory/*.md",
-    "test -d .claude/rules; test -d .claude/imports; rg --files .claude",
-    "git branch --show-current; git rev-parse HEAD; git status --short --branch",
-    "python3 --version; pytest --version; ruff --version; mypy --version; radon --version; pip-audit --version; gh --version",
-    "curl https://api.github.com/repos/JackSmack1971/degenexus/issues?state=open&per_page=200"
+    "find .claude/rules .claude/imports -type f and sed contents",
+    "python requests GET /repos/JackSmack1971/degenexus/issues?state=open"
   ],
   "anomalies_found": [
     {
       "id": "A1",
-      "title": "GitHub issue/PR forensic query unavailable without authenticated tooling (gh missing; unauthenticated REST returned empty list)",
-      "mapped_issue": null,
-      "mapping_type": "blocked-external"
+      "title": "GitHub issue/PR forensic mutation path unavailable",
+      "evidence": [
+        "gh command missing",
+        "origin remote missing",
+        "unauthenticated GitHub issues endpoint returned empty list"
+      ],
+      "mapping": "No verifiable issue mapping possible in this environment without authenticated GitHub visibility."
     }
   ],
   "issues_created": [],
   "issues_updated": [],
   "memory_files_updated": [
-    "memory/PROGRESS.md",
-    "memory/FAILURES.md",
-    "memory/agent_manifests/audit-20260527-session.json"
+    "memory/PROGRESS.md"
   ],
   "forbidden_actions_performed": false,
   "remaining_unprocessed_failures": 0,
