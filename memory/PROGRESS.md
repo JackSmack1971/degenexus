@@ -1,5 +1,45 @@
 # PROGRESS
 
+## Session: 2026-05-27 (claude/fdd-fsv-audit-degenexus-rM1g1) — FDD+FSV AUDIT COMPLETE
+
+### Audit Baseline
+- Branch: `claude/fdd-fsv-audit-degenexus-rM1g1`, HEAD: `28f9b4b`
+- Tests: **368 passed**, 0 failed
+- Coverage: **96% overall** (but 4 files below 90% per-file threshold)
+- pyflakes src/: **CLEAN**
+- mypy `--ignore-missing-imports`: **CLEAN** (0 errors); strict mode: 7 import-untyped errors
+- radon: **A average (2.95)** — no D/E/F methods
+- pip-audit: **No known vulnerabilities**
+- ruff check src/ tests/: **27 findings** (F401/F811/F841, all in test files)
+
+### Open Issues at Session Start
+- Zero open issues (all prior issues closed)
+- One open PR: #83 (codex stale memory dump — not merged/closed; pre-existing)
+
+### Anomalies Found and Issue Map
+
+| ID | Anomaly | Issue | Priority |
+|----|---------|-------|----------|
+| A1 | 27 ruff lint violations in test suite (F401/F811/F841) | [#84](https://github.com/JackSmack1971/degenexus/issues/84) | p3 |
+| A2 | 4 source files below 90% coverage (base_agent:89%, quant_agent:80%, risk_manager:86%, market_feed:87%) | [#85](https://github.com/JackSmack1971/degenexus/issues/85) | p2 |
+| A3 | mypy strict mode fails with 7 import-untyped errors (ta/pandas/yfinance/requests) | [#86](https://github.com/JackSmack1971/degenexus/issues/86) | p3 |
+| A4 | src/get-model-list.py uses os.environ.get() — violates Secrets Policy | [#87](https://github.com/JackSmack1971/degenexus/issues/87) | p2 |
+| A5 | orchestrator.py docstring + ARCHITECTURE.md stale phase cycle | [#88](https://github.com/JackSmack1971/degenexus/issues/88) | p3 |
+| A6 | pyproject.toml requires-python=">=3.12" but runtime Python 3.11.15 | [#89](https://github.com/JackSmack1971/degenexus/issues/89) | p2 |
+
+### Memory Mutations This Session
+
+- `memory/ARCHITECTURE.md`: Corrected 8-phase cycle line (RISK_HARD_GATE added, LEARN phantom removed)
+- `memory/FAILURES.md`: F-004 through F-009 entries added
+- `memory/PROGRESS.md`: This session entry added
+- `memory/agent_manifests/audit-20260527-session.json`: Updated with full audit results
+
+### Unresolved (code fix needed, not in audit scope)
+- `src/orchestrator.py:40` docstring still stale (tracked by #88 — code edit required by implementation agent)
+- PR #83 (codex branch) remains open; pre-existing; noted as observation
+
+---
+
 ## Session: 2026-05-27 (claude/pr-review-merge-phase-mQFV4) — PR REVIEW + MERGE PHASE COMPLETE
 
 ### All 5 Implementation PRs Squash-Merged to main

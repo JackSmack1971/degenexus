@@ -1,35 +1,146 @@
 {
   "phase": "audit",
   "repo": "JackSmack1971/degenexus",
-  "head_sha": "5bfa618b587bf7c06646457910fd84b7f489bab2",
+  "branch": "claude/fdd-fsv-audit-degenexus-rM1g1",
+  "head_sha": "28f9b4baf2b65af1cd2be9566eda32c4669d581e",
+  "session_id": "claude/fdd-fsv-audit-degenexus-rM1g1",
+  "date": "2026-05-27",
   "commands_run": [
-    "rg --files -g AGENTS.md",
-    "find .. -name AGENTS.md -print",
-    "git branch --show-current; git rev-parse HEAD; git status --short",
-    "python3 --version; pytest --version; ruff --version; mypy --version",
-    "test -d .claude/rules; test -d .claude/imports",
-    "sed -n on CLAUDE.md and memory/*.md",
-    "find .claude/rules .claude/imports -type f and sed contents",
-    "python requests GET /repos/JackSmack1971/degenexus/issues?state=open"
+    "git log --oneline -5",
+    "git status --short",
+    "git branch -v",
+    "git remote -v",
+    "python3 --version",
+    "pip install pyflakes radon pip-audit mypy pytest-cov -q",
+    "python3 -m pytest tests/ -q --tb=no  →  368 passed",
+    "python3 -m pytest tests/ --cov=src --cov-report=term-missing -q --tb=no",
+    "python3 -m pyflakes src/  →  CLEAN",
+    "python3 -m mypy src/ --ignore-missing-imports  →  Success: no issues found in 35 source files",
+    "python3 -m mypy src/  →  Found 7 errors in 3 files",
+    "python3 -m radon cc src/ -a  →  Average complexity: A (2.951)",
+    "ruff check src/ tests/  →  Found 27 errors",
+    "pip-audit -r requirements.txt  →  No known vulnerabilities found",
+    "mcp__github__list_issues(state=OPEN)  →  0 open issues",
+    "mcp__github__list_pull_requests(state=open)  →  1 open PR (#83)",
+    "mcp__github__search_issues (6 duplicate searches)  →  all 0 results"
   ],
+  "baseline": {
+    "tests_passed": 368,
+    "tests_failed": 0,
+    "coverage_overall_pct": 96,
+    "pyflakes_src": "CLEAN",
+    "mypy_strict_errors": 7,
+    "mypy_ignore_missing_imports": "CLEAN",
+    "radon_average_complexity": "A (2.951)",
+    "ruff_violations": 27,
+    "pip_audit_cves": 0,
+    "open_issues_at_start": 0,
+    "open_prs_at_start": 1
+  },
   "anomalies_found": [
     {
       "id": "A1",
-      "title": "GitHub issue/PR forensic mutation path unavailable",
-      "evidence": [
-        "gh command missing",
-        "origin remote missing",
-        "unauthenticated GitHub issues endpoint returned empty list"
-      ],
-      "mapping": "No verifiable issue mapping possible in this environment without authenticated GitHub visibility."
+      "category": "TEST",
+      "title": "27 ruff lint violations in test suite (F401/F811/F841)",
+      "sot_command": "ruff check src/ tests/",
+      "evidence": "27 findings in 13 test files; 23 auto-fixable; pyflakes src/ passes",
+      "root_cause": "No ruff gate on tests; unused imports accumulated from refactors",
+      "blast_radius": "CI lint gate non-compliance; dead imports mask brittle tests",
+      "issue": "https://github.com/JackSmack1971/degenexus/issues/84",
+      "issue_number": 84,
+      "duplicate_of": null
+    },
+    {
+      "id": "A2",
+      "category": "TEST/COVERAGE",
+      "title": "4 source files below 90% coverage threshold",
+      "sot_command": "python3 -m pytest tests/ --cov=src --cov-report=term-missing",
+      "evidence": "base_agent.py:89%, quant_agent.py:80%, risk_manager.py:86%, market_feed.py:87%",
+      "root_cause": "Tests mock at call_llm() level above provider-dispatch/error-handler/network code",
+      "blast_radius": "Production fallback paths untested; quant_agent._parse_proposal error path latent bug risk",
+      "issue": "https://github.com/JackSmack1971/degenexus/issues/85",
+      "issue_number": 85,
+      "duplicate_of": null
+    },
+    {
+      "id": "A3",
+      "category": "TYPE",
+      "title": "mypy strict mode fails with 7 import-untyped errors (ta/pandas/yfinance/requests)",
+      "sot_command": "python3 -m mypy src/",
+      "evidence": "7 errors in 3 files: indicators.py (ta/pandas), market_feed.py (yfinance), get-model-list.py (requests)",
+      "root_cause": "Missing stub packages in requirements.txt; no [tool.mypy] config for per-module suppression",
+      "blast_radius": "Type gate cannot run without --ignore-missing-imports suppression",
+      "issue": "https://github.com/JackSmack1971/degenexus/issues/86",
+      "issue_number": 86,
+      "duplicate_of": null
+    },
+    {
+      "id": "A4",
+      "category": "SEC/ARCH",
+      "title": "src/get-model-list.py uses os.environ.get() — violates Secrets Policy",
+      "sot_command": "grep -n os.environ src/get-model-list.py",
+      "evidence": "Line 6: API_KEY = os.environ.get('OPENROUTER_API_KEY'); file not in CLAUDE.md arch; makes live HTTP calls",
+      "root_cause": "Ad-hoc utility script added without security review; bypasses Settings pydantic-settings",
+      "blast_radius": "Secrets policy violation; sets precedent; latent key exposure; bypasses openrouter_client.py",
+      "issue": "https://github.com/JackSmack1971/degenexus/issues/87",
+      "issue_number": 87,
+      "duplicate_of": null
+    },
+    {
+      "id": "A5",
+      "category": "ARCH/MEMORY",
+      "title": "orchestrator.py docstring + ARCHITECTURE.md show stale 8-phase cycle",
+      "sot_command": "grep -n LEARN src/orchestrator.py memory/ARCHITECTURE.md",
+      "evidence": "Both show QUANT_DESIGN→RISK_EVALUATE (missing RISK_HARD_GATE) and phantom LEARN phase",
+      "root_cause": "Docstring/ARCHITECTURE.md predate RISK_HARD_GATE; LEARN planned but never implemented",
+      "blast_radius": "Wrong mental model; RISK_HARD_GATE 'is FINAL' invariant invisible in docs",
+      "memory_fix_applied": "memory/ARCHITECTURE.md corrected this session",
+      "code_fix_needed": "src/orchestrator.py:40 docstring (tracked by issue #88)",
+      "issue": "https://github.com/JackSmack1971/degenexus/issues/88",
+      "issue_number": 88,
+      "duplicate_of": null
+    },
+    {
+      "id": "A6",
+      "category": "CONFIG",
+      "title": "pyproject.toml requires-python='>=3.12' but runtime is Python 3.11.15",
+      "sot_command": "python3 --version; grep requires-python pyproject.toml",
+      "evidence": "Python 3.11.15 runtime vs requires-python='>=3.12'; 368 tests pass; no 3.12-only syntax detected",
+      "root_cause": "Runtime provisioned with Python 3.11 despite CLAUDE.md declaring 'Runtime: Python 3.12'",
+      "blast_radius": "pip install . fails on Python 3.11; potential behavioral divergences",
+      "issue": "https://github.com/JackSmack1971/degenexus/issues/89",
+      "issue_number": 89,
+      "duplicate_of": null
     }
   ],
-  "issues_created": [],
+  "observations": [
+    {
+      "id": "OBS-1",
+      "title": "Open PR #83 (codex stale audit memory dump) unmerged",
+      "detail": "PR #83 from codex/conduct-fdd-and-fsv-audit-pass is open; modifies same memory files as this session; pre-existing from previous session; not a new anomaly",
+      "action": "Noted in PROGRESS.md; no issue created (no code defect)"
+    }
+  ],
+  "issues_created": [84, 85, 86, 87, 88, 89],
   "issues_updated": [],
   "memory_files_updated": [
-    "memory/PROGRESS.md"
+    "memory/ARCHITECTURE.md",
+    "memory/FAILURES.md",
+    "memory/PROGRESS.md",
+    "memory/agent_manifests/audit-20260527-session.json"
   ],
   "forbidden_actions_performed": false,
+  "forbidden_actions_checklist": {
+    "production_code_edits": false,
+    "test_code_edits": false,
+    "fix_branches_created": false,
+    "prs_created": false,
+    "issues_closed": false,
+    "merges_performed": false,
+    "destructive_commands": false,
+    "non_memory_pushes": false
+  },
   "remaining_unprocessed_failures": 0,
+  "anomaly_issue_coverage": "6/6 anomalies mapped to exactly one issue each",
   "completion_verdict": "pass"
 }
