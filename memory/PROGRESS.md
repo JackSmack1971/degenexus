@@ -108,3 +108,25 @@ All 5 open forensic issues have open PRs. No unhandled forensic issues remain. R
 265 tests pass, 3 skipped (265 vs 222 start of session = 43 new tests added)
 Branch: claude/agent-issues-queue-DHSOl
 pyflakes src/ → CLEAN (0 warnings)
+
+---
+
+## Session: 2026-05-27 (codex audit-only FDD+FSV) — BLOCKED
+
+### Scope
+- Performed audit-only evidence collection (no production/test code changes).
+- Collected SoT evidence for doctrine assets, git state, open `source:agent` issues/linked PRs, and tool install state.
+
+### Findings (anomaly → issue mapping)
+- A1: `.claude/rules` and `.claude/imports` are absent in current branch despite CLAUDE turn-start requirement. Mapped to existing open issue **#70** and linked PR **#76**.
+- A2: Open `source:agent` issues #66-#70 remain open while `PROGRESS.md` contains “All 5 Open Forensic Issues Resolved”. This is stale memory state; requires MEMORY-class governance issue mutation (blocked here; no `gh`).
+- A3: Required GitHub mutation path unavailable in environment (`gh` missing; no git remote), preventing required create/update workflow for any newly discovered anomaly.
+
+### Evidence highlights
+- Branch: `work`
+- HEAD: `958dbaac80c4d1c094db77cc02524e4e58bc0152`
+- `git status --short`: only memory artifacts modified by this session
+- GitHub open issues fetched read-only via GitHub REST API: open `source:agent` issues #66-#70 and open PRs #72-#76.
+
+### Verdict
+- **Audit phase completion:** **BLOCKED** (mutation path unavailable for mandatory issue governance updates).
