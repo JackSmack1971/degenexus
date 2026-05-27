@@ -61,6 +61,16 @@ AttributeError: install_layout
 
 ---
 
+## F-007 — CLAUDE.md @import + .claude/rules/ reference missing files (2026-05-27)
+
+**Symptom:** Turn-start ritual Step 5 ("LOAD relevant .claude/rules/") fails silently — `.claude/rules/` directory does not exist; `.claude/imports/doctrine-summary.md` does not exist
+**Impact:** STRIDE security rules undefined; @import directive silently fails; future doctrine-summary content unreachable
+**Root cause:** CLAUDE.md was written from a template with @import and rules references pointing to files never created
+**Tracking issue:** #70
+**Status:** OPEN — create missing files or remove dead references
+
+---
+
 ## F-006 — asyncio_mode config warning in pytest (2026-05-27)
 
 **Symptom:** `PytestConfigWarning: Unknown config option: asyncio_mode`

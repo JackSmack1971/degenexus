@@ -10,6 +10,7 @@
 | #67 | orchestrator.py:99 — `ct.close_reason.value` on Optional[CloseReason] — runtime crash | bug/type-safety | open |
 | #68 | mypy: execution_agent.py:48 + data_analyst.py:119 — two type violations | bug/type-safety | open |
 | #69 | DataAnalystAgent.MarketFeed + IndicatorEngine hard-instantiated — analyze() 19% miss | architecture | open |
+| #70 | CLAUDE.md @import + .claude/rules/01-security.md reference non-existent files — doctrine gap | config | open |
 
 ### Audit Gate Results (Cycle 3 baseline)
 

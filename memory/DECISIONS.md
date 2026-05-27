@@ -4,6 +4,22 @@ Architecture decisions and audit findings requiring downstream implementation ch
 
 ---
 
+## ADR-005 — CLAUDE.md Doctrine File Resolution (2026-05-27)
+
+**Context:** `.claude/imports/doctrine-summary.md` and `.claude/rules/01-security.md` do not exist. Issue #70 tracks this.
+
+**Decision options:**
+1. Create `.claude/imports/doctrine-summary.md` — condensed operational checklist
+2. Create `.claude/rules/01-security.md` — STRIDE/OWASP security rules for this AI trading system
+3. Remove dead `@import` and `*See .claude/rules/*` references from CLAUDE.md (minimal option)
+
+**Recommended:** Option 2 + 1 together. The missing security rules are the higher priority — this project uses LLM APIs, processes market data from external sources, and has prompt injection guards that need a documented policy basis.
+
+**Tracking:** Issue #70
+**Status:** PENDING IMPLEMENTATION
+
+---
+
 ## ADR-004 — DataAnalystAgent DI Pattern (2026-05-27)
 
 **Context:** `DataAnalystAgent.__init__` hard-instantiates `MarketFeed` and `IndicatorEngine`. Issue #69 tracks this.
