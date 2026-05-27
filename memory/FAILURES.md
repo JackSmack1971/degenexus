@@ -40,3 +40,10 @@
 **Root cause:** setuptools versions <65 have known CVEs. The pin causes CI's fresh-install run (new pip cache key) to flag these. Other PRs reuse the cached pip environment from main and bypass the fresh ta build.  
 **Fix:** Remove `setuptools<65` from requirements.txt. Rely on sys.modules injection for test isolation.  
 **Never repeat:** Do not add `setuptools<65` (or other pinned versions of core packaging tools with known CVEs) to requirements.txt — use test-isolation patterns instead.
+
+## 2026-05-27 — GitHub governance mutation blocker persists in audit environment
+- **Failure mode:** Cannot perform required create/update/search-for-duplicates workflow against GitHub issues from this runtime.
+- **Physical evidence:** `gh --version` fails (`command not found`); unauthenticated `GET /repos/JackSmack1971/degenexus/issues?state=open` returned `[]`.
+- **Root cause:** External tooling/auth visibility gap rather than repository code defect.
+- **Blast radius:** Forensic anomaly-to-issue handoff can only proceed when authenticated GitHub mutation tooling is present.
+- **Containment:** Restrict this session to evidence capture + memory synchronization + manifest update.
