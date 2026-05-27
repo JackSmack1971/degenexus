@@ -61,3 +61,10 @@
 **Context:** CLAUDE.md references `.claude/imports/doctrine-summary.md` and `.claude/rules/01-security.md` which do not exist, causing silent failures at Step 5 of the mandatory turn-start ritual.  
 **Decision:** Create both files with the relevant content: (a) doctrine-summary.md as a condensed operational checklist, (b) 01-security.md with STRIDE rules specific to this AI trading system.  
 **Alternative rejected:** Remove the `@import` reference from CLAUDE.md — the files should exist per the stated doctrine.
+
+## ADR-007 — Audit-only pass records evidence without code remediation
+
+**Date:** 2026-05-27  
+**Context:** User requested audit-only FDD+FSV pass and explicit prohibition on implementing fixes. Multiple quality/analyzer failures were detected.
+**Decision:** Record full forensic evidence in memory files and hand off remediation to downstream implementation agent; do not modify production/test logic in this pass.
+**Consequences:** Repository remains functionally test-green but non-compliant on ruff/mypy/tooling gates until implementation cycle.

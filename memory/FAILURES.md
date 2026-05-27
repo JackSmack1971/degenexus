@@ -47,3 +47,22 @@
 - **Root cause:** External tooling/auth visibility gap rather than repository code defect.
 - **Blast radius:** Forensic anomaly-to-issue handoff can only proceed when authenticated GitHub mutation tooling is present.
 - **Containment:** Restrict this session to evidence capture + memory synchronization + manifest update.
+
+## 2026-05-27 — FDD+FSV audit anomalies (codex)
+- **Failure mode:** Quality gates fail in current workspace: `ruff check src tests` reports 27 violations (unused imports/redefinitions/unused vars in tests).
+- **Physical evidence:** Command output includes F401/F811/F841 across test modules (e.g., `tests/conftest.py`, `tests/test_execution_gate.py`, `tests/test_trade_store.py`).
+- **Root cause:** Test-suite hygiene drift; lint gate not enforced at commit boundary.
+- **Blast radius:** CI/static-quality non-compliance; can mask real regressions.
+- **Containment:** Open/update forensic issue and defer code fixes to implementation agent.
+
+- **Failure mode:** Type-check gate fails: `mypy src` reports 6 errors in 2 files due to missing third-party type stubs (`pandas`, `ta`, `yfinance`).
+- **Physical evidence:** `import-untyped` diagnostics in `src/data/indicators.py` and `src/data/market_feed.py`.
+- **Root cause:** Strict mypy gate without complete stub/typing strategy for external deps.
+- **Blast radius:** Static-type gate cannot pass reliably; weakens typed contracts.
+- **Containment:** Track as forensic issue; implementation agent to add stub deps or config policy.
+
+- **Failure mode:** Required audit tools missing: `radon` and `pip-audit` unavailable in environment.
+- **Physical evidence:** `python3 -m radon cc src/ -a` => `No module named radon`; `pip-audit` => `command not found`.
+- **Root cause:** Incomplete auditor runtime toolchain.
+- **Blast radius:** Cannot verify complexity and dependency-vulnerability gates.
+- **Containment:** Track as environment blocker; rerun in provisioned environment.
