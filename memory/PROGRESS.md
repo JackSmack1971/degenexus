@@ -1,5 +1,38 @@
 # PROGRESS
 
+## Session: 2026-05-27 (claude/fdd-fsv-audit-degenexus-seS6t) — Audit Cycle 3
+
+### Issues Created This Session
+
+| # | Title | Template | Status |
+|---|-------|----------|--------|
+| #66 | `ta` dependency build failure → 11 broken tests (CI-blocking) | bug/dependency | open |
+| #67 | orchestrator.py:99 — `ct.close_reason.value` on Optional[CloseReason] — runtime crash | bug/type-safety | open |
+| #68 | mypy: execution_agent.py:48 + data_analyst.py:119 — two type violations | bug/type-safety | open |
+| #69 | DataAnalystAgent.MarketFeed + IndicatorEngine hard-instantiated — analyze() 19% miss | architecture | open |
+
+### Audit Gate Results (Cycle 3 baseline)
+
+| Gate | Result | Evidence |
+|------|--------|----------|
+| pytest (full suite) | 329 passed, 11 FAILED, 4 skipped | 11 failures all in test_indicators.py — ta module not installed |
+| pytest-cov (without indicator tests) | **90%** | PASSES ≥90% threshold |
+| pytest-cov (full suite) | 93% | PASSES ≥90% threshold (indicator tests fail but other coverage compensates) |
+| ruff | **CLEAN** | `All checks passed!` |
+| mypy | **3 errors** → issues #67 #68 | union-attr + arg-type violations |
+| radon avg CC | **A (2.92)** | PASSES <8 avg threshold |
+| radon worst method | ContextInjector.build_context C(20), monitor_cycle C(14), RiskGate.check_hard_rules C(13) | Avg passes; individual functions documented |
+| pip-audit | **CLEAN** | `No known vulnerabilities found` |
+| prompt-injection guards | PRESENT | _sanitize_external_text + TRUST_BOUNDARY_NOTICE verified; 4 tests pass |
+
+### Dependency Build Status
+- `ta>=0.11.0`: FAILS to build wheel on Python 3.11 Linux (C extension compilation failure)
+- All other dependencies: install successfully
+
+### Branch: claude/fdd-fsv-audit-degenexus-seS6t
+
+---
+
 ## Session: 2026-05-26 (claude/autonomous-auditor-skills-cJDLY) — Audit Cycle 2
 
 ### Issues Created This Session
