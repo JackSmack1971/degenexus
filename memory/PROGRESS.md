@@ -145,7 +145,7 @@ pyflakes src/ → CLEAN (0 warnings)
 
 ### Findings (anomaly → issue mapping)
 - A1: `.claude/rules` and `.claude/imports` are absent in current branch despite CLAUDE turn-start requirement. Mapped to existing open issue **#70** and linked PR **#76**.
-- A2: Open `source:agent` issues #66-#70 remain open while `PROGRESS.md` contains “All 5 Open Forensic Issues Resolved”. This is stale memory state; requires MEMORY-class governance issue mutation (blocked here; no `gh`).
+- A2: Open `source:agent` issues #66-#70 remain open while `PROGRESS.md` contains "All 5 Open Forensic Issues Resolved". This is stale memory state; requires MEMORY-class governance issue mutation (blocked here; no `gh`).
 - A3: Required GitHub mutation path unavailable in environment (`gh` missing; no git remote), preventing required create/update workflow for any newly discovered anomaly.
 
 ### Evidence highlights

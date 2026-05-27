@@ -1,11 +1,53 @@
 """Tests for IndicatorEngine — NaN handling, empty input, volume ratio."""
 
+import sys
+import types
 import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone, timedelta
 
 from src.data.indicators import IndicatorEngine
 from src.data.market_feed import OHLCVBar
+
+
+def _make_fake_ta_momentum(rsi_side_effect=None):
+    """Build a sys.modules-injectable ta.momentum namespace."""
+    fake_mom = types.ModuleType("ta.momentum")
+    fake_mom.RSIIndicator = MagicMock(side_effect=rsi_side_effect) if rsi_side_effect else MagicMock()
+    return fake_mom
+
+
+def _make_fake_ta_trend(macd_side_effect=None, ema_side_effect=None):
+    """Build a sys.modules-injectable ta.trend namespace."""
+    fake_trend = types.ModuleType("ta.trend")
+    fake_trend.MACD = MagicMock(side_effect=macd_side_effect) if macd_side_effect else MagicMock()
+    fake_trend.EMAIndicator = MagicMock(side_effect=ema_side_effect) if ema_side_effect else MagicMock()
+    return fake_trend
+
+
+def _make_fake_ta_volatility(bb_factory=None, atr_side_effect=None):
+    """Build a sys.modules-injectable ta.volatility namespace."""
+    fake_vol = types.ModuleType("ta.volatility")
+    fake_vol.BollingerBands = bb_factory or MagicMock()
+    fake_vol.AverageTrueRange = MagicMock(side_effect=atr_side_effect) if atr_side_effect else MagicMock()
+    return fake_vol
+
+
+def _ta_patch(mom=None, trend=None, vol=None):
+    """Return a patch.dict context manager that injects fake ta sub-modules into sys.modules."""
+    fake_ta = types.ModuleType("ta")
+    overrides: dict = {}
+    if mom is not None:
+        fake_ta.momentum = mom
+        overrides["ta.momentum"] = mom
+    if trend is not None:
+        fake_ta.trend = trend
+        overrides["ta.trend"] = trend
+    if vol is not None:
+        fake_ta.volatility = vol
+        overrides["ta.volatility"] = vol
+    overrides["ta"] = fake_ta
+    return patch.dict(sys.modules, overrides)
 
 
 def _make_bars(n: int, base_price: float = 100.0) -> list[OHLCVBar]:
@@ -177,7 +219,7 @@ class TestBollingerPriceClassification:
     """Lines 78-91 — all 5 bb_position classifications."""
 
     def _make_bollinger_result(self, price: float, upper: float, lower: float, mid: float) -> dict:
-        """Helper: mock BollingerBands to return fixed band values, set last close to price."""
+        """Helper: inject fake BollingerBands via sys.modules so test works with or without ta."""
         import pandas as pd
         engine = IndicatorEngine()
         closes = pd.Series([mid] * 25 + [price])
@@ -187,7 +229,8 @@ class TestBollingerPriceClassification:
         mock_bb.bollinger_lband.return_value = pd.Series([lower])
         mock_bb.bollinger_mavg.return_value = pd.Series([mid])
 
-        with patch("ta.volatility.BollingerBands", return_value=mock_bb):
+        fake_vol = _make_fake_ta_volatility(bb_factory=MagicMock(return_value=mock_bb))
+        with _ta_patch(vol=fake_vol):
             return engine._bollinger(closes)
 
     def test_price_above_upper_band(self):
@@ -263,38 +306,42 @@ class TestATRSuccessPath:
 
 class TestRSIExceptionFallback:
     """Line 50-51 — _rsi except path returns None-filled dict (already covered by ta=None test).
-    Explicitly verify with a mocked RSIIndicator that raises."""
+    Uses sys.modules injection so tests pass regardless of whether ta is installed."""
 
-    def test_rsi_raises_returns_none(self, mocker):
+    def test_rsi_raises_returns_none(self):
         import pandas as pd
         engine = IndicatorEngine()
         closes = pd.Series([100.0] * 30)
-        mocker.patch("ta.momentum.RSIIndicator", side_effect=ValueError("rsi error"))
-        result = engine._rsi(closes)
+        fake_mom = _make_fake_ta_momentum(rsi_side_effect=ValueError("rsi error"))
+        with _ta_patch(mom=fake_mom):
+            result = engine._rsi(closes)
         assert result == {"rsi_14": None}
 
-    def test_macd_raises_returns_none(self, mocker):
+    def test_macd_raises_returns_none(self):
         import pandas as pd
         engine = IndicatorEngine()
         closes = pd.Series([100.0] * 30)
-        mocker.patch("ta.trend.MACD", side_effect=ValueError("macd error"))
-        result = engine._macd(closes)
+        fake_trend = _make_fake_ta_trend(macd_side_effect=ValueError("macd error"))
+        with _ta_patch(trend=fake_trend):
+            result = engine._macd(closes)
         assert result == {"macd_line": None, "macd_signal": None, "macd_histogram": None}
 
-    def test_ema_raises_returns_none(self, mocker):
+    def test_ema_raises_returns_none(self):
         import pandas as pd
         engine = IndicatorEngine()
         closes = pd.Series([100.0] * 60)
-        mocker.patch("ta.trend.EMAIndicator", side_effect=ValueError("ema error"))
-        result = engine._ema(closes)
+        fake_trend = _make_fake_ta_trend(ema_side_effect=ValueError("ema error"))
+        with _ta_patch(trend=fake_trend):
+            result = engine._ema(closes)
         assert result == {"ema_20": None, "ema_50": None}
 
-    def test_atr_raises_returns_none(self, mocker):
+    def test_atr_raises_returns_none(self):
         import pandas as pd
         engine = IndicatorEngine()
         highs = pd.Series([101.0] * 30)
         lows = pd.Series([99.0] * 30)
         closes = pd.Series([100.0] * 30)
-        mocker.patch("ta.volatility.AverageTrueRange", side_effect=ValueError("atr error"))
-        result = engine._atr(highs, lows, closes)
+        fake_vol = _make_fake_ta_volatility(atr_side_effect=ValueError("atr error"))
+        with _ta_patch(vol=fake_vol):
+            result = engine._atr(highs, lows, closes)
         assert result == {"atr_14": None}
