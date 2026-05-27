@@ -44,7 +44,8 @@ class ExecutionAgent(BaseAgent):
             logger.warning("EXECUTION_GATE blocked trade %s: %s", proposal.proposal_id, e.reason)
             return None, None, e.reason
 
-        # Apply risk_decision conditions if any
+        # gate.validate() raises TradeBlockedError on None/rejected — assert narrows type for mypy
+        assert risk_decision is not None
         effective_proposal = self._apply_conditions(proposal, risk_decision)
 
         # Determine order type

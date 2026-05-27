@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from src.agents.data_analyst import DataAnalystAgent
 from src.models.signals import DataQuality, MarketSignal
+from src.models.trade import Direction
 
 
 def _make_agent():
@@ -64,6 +65,33 @@ class TestParseSignalHappyPath:
         assert sig is not None
         assert sig.entry_zone.low == pytest.approx(100.0 * 0.995)
         assert sig.entry_zone.high == pytest.approx(100.0 * 1.005)
+
+
+class TestDirectionTypeExplicit:
+    """Regression for issue #68 — direction must be Direction enum in MarketSignal."""
+
+    def test_short_direction_str_produces_direction_enum(self):
+        """'SHORT' string from LLM response must yield Direction.SHORT, not a bare str."""
+        agent = _make_agent()
+        response = {**VALID_RESPONSE, "direction": "SHORT"}
+        sig = agent._parse_signal(response, "AAPL", 150.0, {}, DataQuality.LIVE)
+        assert sig is not None
+        assert sig.direction == Direction.SHORT
+
+    def test_long_direction_lowercase_coerces_to_enum(self):
+        """Lowercase 'long' from LLM response must yield Direction.LONG after .upper()."""
+        agent = _make_agent()
+        response = {**VALID_RESPONSE, "direction": "long"}
+        sig = agent._parse_signal(response, "AAPL", 150.0, {}, DataQuality.LIVE)
+        assert sig is not None
+        assert sig.direction == Direction.LONG
+
+    def test_none_direction_returns_none_signal(self):
+        """direction=None → str(None).upper()='NONE' → invalid Direction → _parse_signal returns None."""
+        agent = _make_agent()
+        response = {**VALID_RESPONSE, "direction": None}
+        sig = agent._parse_signal(response, "AAPL", 150.0, {}, DataQuality.LIVE)
+        assert sig is None
 
 
 class TestParseSignalInvalidInputs:
