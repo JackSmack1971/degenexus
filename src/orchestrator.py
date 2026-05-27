@@ -96,7 +96,7 @@ class TradingOrchestrator:
         for ct in closed_this_cycle:
             self.trade_store.upsert_trade(ct)
             self._emit("POSITION_CLOSED", "PORTFOLIO_MANAGER",
-                       f"{ct.symbol} closed | {ct.close_reason.value} | PnL: ${ct.realized_pnl:+.2f}")
+                       f"{ct.symbol} closed | {ct.close_reason.value if ct.close_reason else 'UNKNOWN'} | PnL: ${ct.realized_pnl:+.2f}")
 
         # Update performance context every cycle
         context = self._build_context()
