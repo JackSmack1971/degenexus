@@ -1,16 +1,15 @@
 # DECISIONS
 
-## ADR-001 — Pin setuptools<65 for ta wheel compatibility (codex/issue-66)
+## ADR-001 — sys.modules injection as primary CI fix for ta-dependent tests (codex/issue-66)
 
 **Date:** 2026-05-27  
 **Issue:** #66  
-**Context:** `ta>=0.11.0` uses legacy distutils commands incompatible with setuptools>=65. CI containers and Python 3.11 environments cannot build the `ta` wheel without this pin.  
-**Decision:** Add `setuptools<65` to `requirements.txt` before `ta>=0.11.0`. This is the minimal fix that restores `ta` installation capability without replacing the library.  
+**Context:** `ta>=0.11.0` fails to build wheels in some environments (setuptools>=65 removes `install_layout`). 11 tests used dotted-path `patch("ta.volatility.BollingerBands", ...)` which requires ta to be importable at patch-time — these tests fail with `ModuleNotFoundError` when ta is not installed. A `setuptools<65` pin was initially added but caused CI `pip-audit` to flag CVEs in old setuptools, creating a new CI failure.  
+**Decision:** The primary fix is **sys.modules injection** only — no `setuptools<65` pin in requirements.txt. Tests work regardless of whether ta is installed. `setuptools<65` was removed after it caused pip-audit failures in CI (pip cache miss forced fresh install, pip-audit flagged setuptools 64.x CVEs).  
 **Alternatives rejected:**
-- Replace `ta` with `pandas-ta` — not available for Python <3.12 in this environment
-- Remove `ta` entirely — would require rewriting `IndicatorEngine` 
-- Ignore (suppress) the build error — unacceptable; CI must be green  
-**Trade-offs:** setuptools<65 is a narrow constraint. Monitor for conflicts with future packages that require newer setuptools.  
+- Keep `setuptools<65` pin — causes pip-audit CI failures
+- Replace `ta` with `pandas-ta` — requires rewriting `IndicatorEngine`
+- Remove `ta` entirely — requires rewriting `IndicatorEngine`
 **Edge cases covered:** BVA — empty bars, bars exactly at 30 boundary, all indicators None; ECP — ta missing, ta installed, ta raises.
 
 ---

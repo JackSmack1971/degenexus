@@ -9,14 +9,14 @@
 
 ---
 
-## F-001 — ta wheel build fails on setuptools>=65 / Python 3.11 (resolved by codex/issue-66)
+## F-001 — ta-dependent test failures from dotted-path patch (resolved by sys.modules injection, codex/issue-66)
 
 **Date:** 2026-05-27  
 **Issue:** #66  
-**Symptom:** `pip install ta>=0.11.0` raises `AttributeError: install_layout` in distutils C-extension build path when setuptools>=65.  
-**Root cause:** `ta` uses legacy distutils commands that are incompatible with setuptools>=65 which removed the `install_layout` attribute.  
-**Blast radius:** 11 tests in `TestBollingerPriceClassification` + `TestRSIExceptionFallback` fail with `ModuleNotFoundError: No module named 'ta'` because `patch("ta.volatility.BollingerBands", ...)` resolves the dotted path at patch-time, requiring `ta` to be importable.  
-**Fix:** (a) Pin `setuptools<65` in `requirements.txt` to allow `ta` wheel to build. (b) Replaced dotted-path string patches in the 11 failing tests with `sys.modules` injection via `_ta_patch()` helper — tests now pass regardless of whether `ta` is installed.  
+**Symptom:** 11 tests in `TestBollingerPriceClassification` + `TestRSIExceptionFallback` fail with `ModuleNotFoundError: No module named 'ta'` when ta is not installed.  
+**Root cause:** Tests used `patch("ta.volatility.BollingerBands", ...)` — Python's `patch()` resolves dotted paths by importing the root module at patch-time, requiring `ta` to be importable even for mock tests.  
+**Fix:** Replaced dotted-path string patches with `sys.modules` injection via `_ta_patch()` helper. Tests pass whether or not `ta` is installed.  
+**Note:** `setuptools<65` pin was attempted as secondary fix but caused CI `pip-audit` failures — removed (see F-003).  
 **Never repeat:** Do not use `patch("some.module.ClassName", ...)` when the parent module may not be installed — use `sys.modules` injection instead.
 
 ---
@@ -29,3 +29,14 @@
 **Root cause:** `unittest.mock.patch` with a dotted string resolves the target module by importing it, not by inspecting sys.modules.  
 **Fix:** Use `patch.dict(sys.modules, {"ta": fake_ta, "ta.momentum": fake_mom})` to inject the mock module before the code under test tries to import it.  
 **Never repeat:** All indicator tests now use `_ta_patch()` helper for consistent sys.modules injection.
+
+---
+
+## F-003 — setuptools<65 pin in requirements.txt causes pip-audit CVE failures in CI (learned from codex/issue-66)
+
+**Date:** 2026-05-27  
+**Issue:** #66  
+**Symptom:** CI "test" job fails on `pip-audit -r requirements.txt` after pinning `setuptools<65`.  
+**Root cause:** setuptools versions <65 have known CVEs. The pin causes CI's fresh-install run (new pip cache key) to flag these. Other PRs reuse the cached pip environment from main and bypass the fresh ta build.  
+**Fix:** Remove `setuptools<65` from requirements.txt. Rely on sys.modules injection for test isolation.  
+**Never repeat:** Do not add `setuptools<65` (or other pinned versions of core packaging tools with known CVEs) to requirements.txt — use test-isolation patterns instead.
