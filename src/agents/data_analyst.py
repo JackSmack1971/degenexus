@@ -30,10 +30,16 @@ Respond ONLY with JSON. No commentary outside the JSON object."""
 
 class DataAnalystAgent(BaseAgent):
 
-    def __init__(self, performance_context: str = "") -> None:
+    def __init__(
+        self,
+        performance_context: str = "",
+        *,
+        feed: Optional[MarketFeed] = None,
+        engine: Optional[IndicatorEngine] = None,
+    ) -> None:
         super().__init__("DATA_ANALYST", performance_context)
-        self.feed = MarketFeed(alpha_vantage_key=None)
-        self.engine = IndicatorEngine()
+        self.feed = feed or MarketFeed(alpha_vantage_key=None)
+        self.engine = engine or IndicatorEngine()
 
     def analyze(self, symbol: str) -> Optional[MarketSignal]:
         """Fetch data, compute indicators, generate signal. Returns None on data failure."""
@@ -72,10 +78,11 @@ class DataAnalystAgent(BaseAgent):
             if v is not None
         )
 
+        last = bars[-1] if bars else None
         return f"""Analyze this equity data and generate a trading signal.
 
-SYMBOL: {bars[-1].symbol if bars else 'UNKNOWN'}
-CURRENT PRICE: {bars[-1].close:.4f}
+SYMBOL: {last.symbol if last else 'UNKNOWN'}
+CURRENT PRICE: {(last.close if last else 0.0):.4f}
 
 RECENT PRICE HISTORY (last 10 bars):
 {price_history}
