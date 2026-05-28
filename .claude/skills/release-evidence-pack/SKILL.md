@@ -11,6 +11,9 @@ when_to_use: >
 
 # Release Evidence Pack
 
+Use `.claude/rules/evidence-schema.yml` as the output schema and `.claude/rules/synergy-contract.yml` for specialist routing.
+
+
 ## Workflow
 
 1. Record changed files and classify runtime, test, docs, memory, and `.claude` impacts.
@@ -29,3 +32,5 @@ when_to_use: >
 - Memory updates
 - Remaining risk
 - Final verdict
+
+The final pack must include `verdict`, `scope_reviewed`, `source_of_truth`, `commands_run`, `findings`, `edge_cases`, `handoffs`, and `memory_update` fields from `.claude/rules/evidence-schema.yml`.

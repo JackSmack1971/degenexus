@@ -7,14 +7,14 @@ python .claude/hooks/validate-claude-config.py
 python -m compileall -q .claude/hooks
 ```
 
-Inside Claude Code, also run `/context`, `/memory`, `/agents`, `/skills`, `/hooks`, `/permissions`, `/doctor`, and `/status` after significant configuration changes.
+Inside Claude Code, also run `/context`, `/memory`, `/agents`, `/skills`, `/hooks`, `/permissions`, `/doctor`, and `/status` after significant configuration changes. Record those checks with `.claude/skills/claude-config-audit/references/live-smoke-template.md` when `.claude/**`, `CLAUDE.md`, or `AGENTS.md` changed.
 
 ## Capability Boundaries
 
 - **Project-local:** files in `.claude/agents`, `.claude/skills`, `.claude/commands`, `.claude/rules`, `.claude/imports`, `.claude/output-styles`, `.claude/hooks`, `.claude/agent-memory`, and `.claude/settings.json`.
 - **Bundled Claude Code:** `/code-review`, `/batch`, `/debug`, `/loop`, `/claude-api`, `/run`, and `/verify` when available in the installed Claude Code version.
 - **External/plugin:** any `plugin-name:skill-name` or `agent-skills:*` reference must document plugin source, version, and verification command before use.
-- **Collision policy:** project skills and commands should not reuse bundled names unless the override is intentional and documented. Skills with the same slash name can take precedence over `.claude/commands/`.
+- **Collision policy:** `/ship`, `/audit`, `/review`, and `/test` intentionally have both command shims and same-name manual skills; the skill is canonical and the command only points to it.
 
 ## Directory Purpose
 
@@ -22,12 +22,12 @@ Inside Claude Code, also run `/context`, `/memory`, `/agents`, `/skills`, `/hook
 | --- | --- |
 | `.claude/agents/` | Project subagents checked into source control for team-wide specialist behavior. |
 | `.claude/skills/` | Reusable on-demand workflows loaded by agents or commands. |
-| `.claude/commands/` | Slash-command playbooks that invoke local agents/skills and verification evidence. |
-| `.claude/rules/` | Supplemental durable rules, including security and the agent-skill synergy map. |
+| `.claude/commands/` | Compatibility slash-command shims that point to canonical skills and verification evidence. |
+| `.claude/rules/` | Supplemental durable rules, including `synergy-contract.yml`, `evidence-schema.yml`, `settings-policy-waivers.yml`, security, and the human-readable agent-skill synergy map. |
 | `.claude/imports/` | Shared doctrine snippets imported into Claude workflows. |
 | `.claude/output-styles/` | Output style definitions. |
 | `.claude/agent-memory/` | Project-scoped specialist memory. Files must be `.claude/agent-memory/<agent>/MEMORY.md`. |
-| `.claude/hooks/` | Automation scripts for config validation, subagent audit logging, session reminders, and secret-file warnings. |
+| `.claude/hooks/` | Automation scripts for config validation, protected-file blocking, subagent audit logging, session reminders, and secret-file warnings. |
 | `.claude/local/` | Gitignored local hook output. |
 
 ## Agent Matrix
@@ -36,7 +36,7 @@ Inside Claude Code, also run `/context`, `/memory`, `/agents`, `/skills`, `/hook
 | --- | --- | --- | --- |
 | `ship` | No direct edits | Main-session pre-merge orchestration and GO/NO-GO evidence | `claude-config-audit`, `release-evidence-pack` |
 | `code-reviewer` | No | Five-dimension code review | `code-reviewer` |
-| `security-auditor` | No | Security, dependency handoff, prompt-safety, auth/secrets review | `security-review`, `prompt-safety-review`, `claude-config-audit` |
+| `security-auditor` | No | Security evidence consumer for dependencies, prompt safety, auth/secrets, and protected-file policy | `security-review`, `prompt-safety-review`, `claude-config-audit` |
 | `test-engineer` | Yes | Single authoritative pytest author and coverage analyst | `test-regression`, `edge-case-audit`, `fsv-verify` |
 | `test-writer` | No | Deprecated alias; redirect to `test-engineer` | none |
 | `fdd-investigator` | No | Read-only root-cause analysis for persistent failures | `forensic-debug`, `fsv-verify` |
@@ -54,45 +54,67 @@ Inside Claude Code, also run `/context`, `/memory`, `/agents`, `/skills`, `/hook
 
 | Skill | Invocation mode | Trigger | Owner agents |
 | --- | --- | --- | --- |
+| `audit` | Manual slash skill | Claude internals audit workflow | parent session, `docs-memory-curator` |
 | `claude-config-audit` | Manual or preloaded | `.claude/**` or Claude setup changes | `ship`, `docs-memory-curator` |
 | `code-reviewer` | Model-invocable | Five-dimension review | `code-reviewer` |
 | `dependency-audit` | Manual-only | Dependency scan evidence | parent session, `ship`, `security-auditor` handoff |
 | `edge-case-audit` | Model-invocable | Boundary/failure/resilience analysis | `test-engineer`, domain auditors |
 | `forensic-debug` | Model-invocable, narrow trigger | Root-cause reconstruction | `fdd-investigator` |
-| `fsv-verify` | Model-invocable | Any mutation or SoT proof | `test-engineer`, `fdd-investigator`, domain auditors |
+| `fsv-verify` | Model-invocable, slim doctrine | Any mutation or SoT proof | `test-engineer`, `fdd-investigator`, domain auditors |
+| `fsv-verify-deep` | Manual-only | High-risk or disputed SoT verification | parent session, domain auditors by escalation |
 | `prompt-safety-review` | Model-invocable | Prompt-safety and trust-boundary review | `security-auditor`, `prompt-injection-auditor` |
 | `release-evidence-pack` | Manual-only or `/ship`-only | PR/ship evidence assembly | `ship`, `docs-memory-curator` |
+| `review` | Manual slash skill | Contract-driven five-axis review workflow | parent session, `code-reviewer` |
 | `risk-control-audit` | Model-invocable | Trading risk-control review | `risk-gate-verifier` |
 | `run-degenexus` | Manual-only | Project run and verify recipe | parent session |
 | `security-review` | Model-invocable | Security checklist and dependency handoff | `security-auditor` |
+| `ship` | Manual slash skill | Pre-merge GO/NO-GO gate | parent session, `ship` |
 | `sqlite-sot-verify` | Model-invocable | SQLite state verification | `trade-lifecycle-auditor` |
+| `test` | Manual slash skill | Pytest/Prove-It workflow | parent session, `test-engineer` |
 | `test-regression` | Model-invocable | Prove-It and FSV-AAA pytest authoring | `test-engineer` |
 
 ## Command Matrix
 
 | Command | Primary agents/skills | Required evidence |
 | --- | --- | --- |
-| `/audit` | `claude-config-audit`, `release-evidence-pack` | Config validation, hook compile output, memory naming, README inventory. |
+| `/audit` | Compatibility shim to `audit` skill | Config validation, hook compile output, memory naming, README inventory, schema fields. |
 | `/build` | `test-engineer`, `edge-case-audit`, `fsv-verify` | Failing test, passing test, SoT delta, compile for runtime changes. |
 | `/code-simplify` | `code-reviewer`, `fsv-verify` | Behavior-preserving tests and SoT comparison. |
 | `/plan` | Read-only planning plus synergy map | Acceptance criteria, verification steps, edge cases, specialist map. |
-| `/review` | `code-reviewer` plus domain specialists per synergy map | File-specific findings and recommendations. |
-| `/ship` | `ship` main-session orchestrator or parent-session fan-out | GO/NO-GO, command evidence, specialist findings, edge cases, memory status. |
+| `/review` | Compatibility shim to `review` skill | File-specific findings, specialist routing, schema fields. |
+| `/ship` | Compatibility shim to `ship` skill | GO/NO-GO, command evidence, specialist findings, edge cases, memory status. |
 | `/spec` | `edge-case-audit` | Spec, boundaries, FSV evidence expectations. |
-| `/test` | `test-engineer`, `test-regression` | Pytest evidence, FSV-AAA assertions, mocked external dependencies. |
+| `/test` | Compatibility shim to `test` skill | Pytest evidence, FSV-AAA assertions, mocked external dependencies, schema fields. |
 
 ## Hook Inventory
 
 | Hook script | Event(s) | Purpose |
 | --- | --- | --- |
-| `validate-claude-config.py` | `PostToolUse`, `ConfigChange` | Validate frontmatter, skills, memory naming, permissions, hook schema, command collisions, and README drift. |
+| `protect-sensitive-files.py` | `PreToolUse` | Block reads/writes/edits/Bash paths targeting `.env*`, `secrets/**`, credential keys, or SQLite runtime files before tool execution. |
+| `validate-claude-config.py` | `PostToolUse`, `ConfigChange` | Validate frontmatter, skills, memory naming, protected-file policy, evidence schema, synergy contract, command shims, settings schema, hooks, and README drift. |
 | `log-subagent-event.py` | `SubagentStart`, `SubagentStop` | Append local JSONL lifecycle evidence to `.claude/local/subagent-events.jsonl`. |
 | `session-start-reminder.py` | `SessionStart` | Print a short project ritual and routing reminder. |
 | `warn-env-file-changed.py` | `FileChanged` | Warn when `.env` or `.envrc` files change without reading secret content. |
 
+## Rule Inventory
+
+- `01-security.md` — durable security and prompt-injection policy.
+- `02-agent-synergy.md` — human-readable routing map, test-agent ownership, security-auditor command boundary, and memory convention.
+- `synergy-contract.yml` — machine-readable risk-surface routing contract.
+- `evidence-schema.yml` — schema-checkable specialist and release output contract.
+- `settings-policy-waivers.yml` — explicit sandbox/network waiver record for settings surfaces.
+
 ## Agent-Skill Synergy
 
-The routing source of truth is `.claude/rules/02-agent-synergy.md`. `/audit`, `/review`, `/ship`, and specialists must cite that file rather than maintaining divergent fan-out logic.
+The machine-readable routing source of truth is `.claude/rules/synergy-contract.yml`; the human-readable companion is `.claude/rules/02-agent-synergy.md`. `/audit`, `/review`, `/ship`, `/test`, and specialists must cite those files rather than maintaining divergent fan-out logic.
+
+## Evidence Schema
+
+Every routed specialist output and release evidence pack must emit `.claude/rules/evidence-schema.yml` fields: `verdict`, `scope_reviewed`, `source_of_truth`, `commands_run`, `findings`, `edge_cases`, `handoffs`, and `memory_update`.
+
+## Memory Curation
+
+Agent memories are loaded only from the initial portion of `.claude/agent-memory/<agent>/MEMORY.md`. Keep the first 200 lines concise and ordered as `Current operating assumptions`, `Recent validated learnings`, then `Historical notes`.
 
 ## Prompt-Flow Inventory
 
@@ -101,6 +123,6 @@ Prompt-injection reviews should start from `.claude/skills/prompt-safety-review/
 ## Naming Rules
 
 - Agents use noun-role names such as `security-auditor`.
-- Skills use workflow names such as `prompt-safety-review`.
+- Skills use workflow names such as `prompt-safety-review`; `/ship`, `/audit`, `/review`, and `/test` are intentional manual workflow-skill exceptions with command shims.
 - Commands use user action names such as `/ship`.
 - Avoid stale `agent-skills:*` references unless a plugin dependency is documented and verified.

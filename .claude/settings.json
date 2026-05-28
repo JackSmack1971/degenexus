@@ -1,11 +1,40 @@
 {
   "permissions": {
     "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(.env*)",
+      "Read(./secrets/**)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./**/*credential*.json)",
+      "Read(./**/*.db)",
+      "Read(./**/*.db-wal)",
+      "Read(./**/*.db-shm)",
+      "Edit(./.env)",
+      "Edit(./.env.*)",
+      "Edit(.env*)",
+      "Edit(./secrets/**)",
+      "Edit(./**/*.pem)",
+      "Edit(./**/*.key)",
+      "Edit(./**/*credential*.json)",
+      "Edit(./**/*.db)",
+      "Edit(./**/*.db-wal)",
+      "Edit(./**/*.db-shm)",
+      "Write(./.env)",
+      "Write(./.env.*)",
+      "Write(.env*)",
+      "Write(./secrets/**)",
+      "Write(./**/*.pem)",
+      "Write(./**/*.key)",
+      "Write(./**/*credential*.json)",
+      "Write(./**/*.db)",
+      "Write(./**/*.db-wal)",
+      "Write(./**/*.db-shm)",
       "Bash(rm -rf *)",
       "Bash(git push --force*)",
       "Bash(cat .env*)",
-      "Bash(echo * > .env*)",
-      "Read(.env*)"
+      "Bash(echo * > .env*)"
     ]
   },
   "hooks": {
@@ -70,6 +99,17 @@
           {
             "type": "command",
             "command": "python .claude/hooks/warn-env-file-changed.py"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read|Write|Edit|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/protect-sensitive-files.py"
           }
         ]
       }

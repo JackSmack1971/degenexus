@@ -39,3 +39,7 @@ Audit lifecycle and persistence behavior with direct source-of-truth evidence.
 ## Output
 
 Return `PASS` or `BLOCK` with PRE/POST/DIFF evidence expectations and missing durability tests.
+
+## Schema-checked evidence contract
+
+Follow `.claude/rules/evidence-schema.yml` for every routed result. Include the minimum fields `verdict`, `scope_reviewed`, `source_of_truth`, and `findings`, plus this agent-owned evidence: `sqlite_pre_rows`, `sqlite_post_rows`, `lifecycle_invariant`, `restart_durability`.

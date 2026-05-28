@@ -1,17 +1,12 @@
 ---
-description: Run DegenExus pytest workflow with Prove-It regressions, FSV-AAA assertions, and edge-case coverage
+description: Compatibility shim for the canonical /test skill workflow
 ---
 
-Use the `test-engineer` subagent and `test-regression`, `edge-case-audit`, and `fsv-verify` skills for test authoring or coverage analysis.
+Invoke the project skill `/test` and follow these canonical references instead of duplicating workflow prose:
 
-For new behavior:
-1. Identify the source of truth and current test patterns.
-2. Write pytest coverage with FSV-AAA structure: PRE source-of-truth read, one ACT, POST reread and expected DIFF assertion.
-3. Include BVA/ECP cases for empty/zero, min/max boundary, malformed/adversarial input, and concurrency/ordering when applicable.
-4. Use `pytest-mock`'s `mocker` fixture; do not import `unittest.mock` directly.
-5. Mock LLM providers, yfinance/network calls, time, and random behavior.
-6. Run targeted pytest first, then broader regression tests when feasible.
+- `.claude/skills/test/SKILL.md`
+- `.claude/rules/synergy-contract.yml`
+- `.claude/rules/evidence-schema.yml`
+- `.claude/rules/02-agent-synergy.md`
 
-For bugs, use Prove-It: write a failing regression test first, confirm it fails, then fix and confirm it passes.
-
-Final output must include: Scope reviewed; Source of Truth used; Specialists/skills invoked; Evidence commands and exact results; Findings by severity or coverage gap; at least three edge cases considered; Memory update needed yes/no plus path; Next action owner.
+Final output must emit the minimum gate fields from `.claude/rules/evidence-schema.yml`: `verdict`, `scope_reviewed`, `source_of_truth`, and `findings`.

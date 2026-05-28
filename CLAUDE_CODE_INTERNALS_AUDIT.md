@@ -462,3 +462,31 @@ The following stale findings should no longer be carried forward:
 - **No `.claude/settings.json`:** project settings now exist and include permissions and hooks.
 - **Commands referencing removed `agent-skills:*` plugin names:** the validator no longer reports stale plugin references.
 - **Broken Claude internals validation:** `validate-claude-config.py` currently passes.
+
+---
+
+## Implementation PR Map — 2026-05-28
+
+This section maps every finding above to the single implementation PR that closes it. Downstream agents should treat the files below as the new source-of-truth implementation and run `python .claude/hooks/validate-claude-config.py` plus `python -m compileall -q .claude/hooks` before review.
+
+| Finding | Status | Implementation source of truth |
+| --- | --- | --- |
+| P0 — no immediate broken-internals blocker | Preserved | Validator remains the release gate in `.claude/hooks/validate-claude-config.py`; no stale missing-memory or missing-skill work is reintroduced. |
+| P1 — machine-readable agent/skill synergy contract | Addressed | `.claude/rules/synergy-contract.yml` defines risk surfaces, primary agents, required skills, globs, evidence fields, and command-contract references. `.claude/hooks/validate-claude-config.py` validates agent existence, skill existence, command references, and agent-owned evidence fields. |
+| P1 — stronger protected-file enforcement | Addressed | `.claude/settings.json` expands `Read`/`Edit`/`Write` deny rules for `.env*`, `secrets/**`, key/cert/credential JSON, and SQLite runtime files. `.claude/hooks/protect-sensitive-files.py` blocks protected `Read`, `Write`, `Edit`, `MultiEdit`, and `Bash` tool calls at `PreToolUse`. |
+| P1 — schema-checkable `/ship` evidence | Addressed | `.claude/rules/evidence-schema.yml` defines required evidence fields. `.claude/skills/ship/SKILL.md`, `.claude/agents/ship.md`, and `.claude/skills/release-evidence-pack/SKILL.md` require the schema and reject malformed specialist evidence. |
+| P2 — convert mature slash commands into skills | Addressed | Canonical manual skills now exist under `.claude/skills/ship/`, `.claude/skills/audit/`, `.claude/skills/review/`, and `.claude/skills/test/`. `.claude/commands/{ship,audit,review,test}.md` are compatibility shims pointing to the skill and contract/schema files. |
+| P2 — tune broad model-invocable skills | Addressed | `edge-case-audit` has a shorter model-invocable description. `fsv-verify` is a slim doctrine skill. Heavy FSV material moved to manual `fsv-verify-deep` and `fsv-verify-deep/references/adversarial-checklist.md`. Validator warns for model-invocable descriptions over 300 characters. |
+| P2 — clarify `security-auditor` evidence authority | Addressed | `.claude/rules/02-agent-synergy.md` documents `security-auditor` as a no-`Bash` evidence consumer. `.claude/agents/security-auditor.md` requires output to state parent-provided versus static-inspection evidence and makes dependency-audit command ownership explicit. |
+| P2 — resolve `test-writer` versus `test-engineer` overlap | Addressed | `.claude/rules/02-agent-synergy.md` declares `test-engineer` the canonical test owner and `test-writer` a deprecated read-only redirect. Validator warns if test-named agents lack test skills or explicit rationale. |
+| P2 — add validator coverage for settings and schema drift | Addressed | `.claude/hooks/validate-claude-config.py` now checks settings top-level keys, protected-file deny/edit/write parity, protected-file hook registration, sandbox/network waiver presence, command-skill shims, broad model-invocable skill descriptions, synergy contract references, evidence schema references, and README inventory drift. `.claude/rules/settings-policy-waivers.yml` documents current sandbox/network waivers. |
+| P3 — add local Claude Code smoke-test transcript guidance | Addressed | `.claude/skills/claude-config-audit/references/live-smoke-template.md` captures `/status`, `/agents`, `/skills`, `/hooks`, `/permissions`, and `/doctor` evidence. `.claude/skills/ship/SKILL.md` requires live smoke evidence for Claude internals changes or `NOT_RUN` with reason. |
+| P3 — document project-memory curation thresholds | Addressed | `.claude/rules/02-agent-synergy.md` and `.claude/README.md` define the first-200-lines memory convention and section order. Existing project memories now include `Current operating assumptions`, `Recent validated learnings`, and `Historical notes`. Validator warns on oversized memory files without the top summary section. |
+
+### Review checklist for this PR
+
+- Confirm `python .claude/hooks/validate-claude-config.py` exits 0 and lists no warnings.
+- Confirm `python -m compileall -q .claude/hooks` exits 0.
+- Confirm negative protected-file hook samples block `.env.local` and `secrets/foo` before tool execution.
+- Confirm normal file access samples, such as `src/main.py`, are not blocked by the protected-file hook.
+- Interactive Claude Code smoke checks are not runnable in this non-interactive environment; use `.claude/skills/claude-config-audit/references/live-smoke-template.md` during human review if needed.

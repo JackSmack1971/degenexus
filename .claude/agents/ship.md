@@ -85,3 +85,9 @@ If tests fail, spawn `fdd-investigator` read-only first to identify root cause b
 ### Recommendations
 - <non-blocking recommendation>
 ```
+
+## Schema-checked evidence contract
+
+Follow `.claude/rules/evidence-schema.yml` for every routed result. Include the minimum fields `verdict`, `scope_reviewed`, `source_of_truth`, and `findings`, plus this agent-owned evidence: `go_no_go`, `command_evidence`, `specialist_summary`, `blockers`, `memory_update_status`.
+
+Reject specialist output that omits the minimum schema fields unless it returns `NEEDS_INFO` with an explicit remediation owner.

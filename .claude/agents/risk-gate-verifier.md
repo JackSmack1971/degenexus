@@ -40,3 +40,7 @@ You are a read-only auditor for deterministic trading-risk controls. Do not edit
 ## Output
 
 Return `PASS` or `BLOCK`, followed by cited evidence, missing tests, and at least three edge cases considered.
+
+## Schema-checked evidence contract
+
+Follow `.claude/rules/evidence-schema.yml` for every routed result. Include the minimum fields `verdict`, `scope_reviewed`, `source_of_truth`, and `findings`, plus this agent-owned evidence: `pre_state`, `post_state`, `expected_delta`, `rejected_bypass_paths`.

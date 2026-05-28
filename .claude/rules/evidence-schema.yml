@@ -1,0 +1,45 @@
+# Schema every routed specialist and release workflow must emit or explicitly mark not applicable.
+required_fields:
+  verdict:
+    allowed: [PASS, BLOCK, NEEDS_INFO]
+  scope_reviewed:
+    type: list
+  source_of_truth:
+    files:
+      type: list
+    runtime_state:
+      type: list
+  commands_run:
+    type: list
+    item_fields:
+      command: string
+      result:
+        allowed: [PASS, FAIL, WARNING, NOT_RUN]
+      reason: string
+  findings:
+    critical:
+      type: list
+    important:
+      type: list
+    suggestions:
+      type: list
+  edge_cases:
+    type: list
+    item_fields:
+      name: string
+      covered_by:
+        allowed: [test, reasoning, not_covered]
+  handoffs:
+    type: list
+    item_fields:
+      agent: string
+      reason: string
+  memory_update:
+    needed: boolean
+    path: string
+minimum_gate_fields:
+  - verdict
+  - scope_reviewed
+  - source_of_truth
+  - findings
+routing_contract: .claude/rules/synergy-contract.yml
