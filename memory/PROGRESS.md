@@ -1,5 +1,47 @@
 # PROGRESS
 
+## Session: 2026-05-28 (claude/degenexus-forensic-impl-GpA5n) — IMPLEMENTATION+PR PHASE COMPLETE
+
+### Session Baseline
+- Branch: `claude/degenexus-forensic-impl-GpA5n` (from main HEAD `e89da86aa72487095b4ae05017688233516f0de0`)
+- Tests at start: **363 passed, 5 skipped**
+- Eligible issues: #84, #85, #86, #87, #88, #89, #91 (7 total)
+- Open PRs at start: 0
+
+### Implementations and PRs
+
+| Issue | Priority | Fix | Branch | PR |
+|-------|----------|-----|--------|----|
+| #89 | p2 | `requires-python = ">=3.11"` | codex/issue-89 | [#93](https://github.com/JackSmack1971/degenexus/pull/93) |
+| #87 | p2 | `Settings()` replaces `os.environ.get()` in get-model-list.py | codex/issue-87 | [#94](https://github.com/JackSmack1971/degenexus/pull/94) |
+| #85 | p2 | +25 tests → 100% on base_agent, quant_agent, risk_manager, market_feed | codex/issue-85 | [#95](https://github.com/JackSmack1971/degenexus/pull/95) |
+| #84 | p3 | ruff --fix + 4 manual F841 removals → 0 ruff errors | codex/issue-84 | [#96](https://github.com/JackSmack1971/degenexus/pull/96) |
+| #86 | p3 | `[tool.mypy]` config + pandas-stubs/types-requests deps | codex/issue-86 | [#97](https://github.com/JackSmack1971/degenexus/pull/97) |
+| #88 | p3 | orchestrator.py:40 docstring corrected (RISK_HARD_GATE, no LEARN) | codex/issue-88 | [#98](https://github.com/JackSmack1971/degenexus/pull/98) |
+| #91 | p3 | Portfolio DI in main.py; removed `os.environ["STARTING_CAPITAL"]` mutation | codex/issue-91 | [#99](https://github.com/JackSmack1971/degenexus/pull/99) |
+
+### Post-Fix FSV (per branch, 363 tests pass on each)
+
+| Issue | Pre | Post |
+|-------|-----|------|
+| #89 | `requires-python=">=3.12"`; python3=3.11.15 | `requires-python=">=3.11"`; 363 pass |
+| #87 | `os.environ.get("OPENROUTER_API_KEY")` at line 6 | `Settings().openrouter_api_key.get_secret_value()` |
+| #85 | base_agent:86%, quant_agent:80%, risk_manager:86%, market_feed:87% | all 4 at 100%; TOTAL 97%; 388 tests pass |
+| #84 | 27 ruff errors | 0 ruff errors; 363 tests pass |
+| #86 | 7 mypy errors in 4 files | "Success: no issues found in 35 source files" |
+| #88 | LEARN phase + missing RISK_HARD_GATE in docstring | correct 8-phase sequence; 363 pass |
+| #91 | `os.environ["STARTING_CAPITAL"] = str(args.capital)` | `Portfolio(starting_capital=args.capital)` via DI |
+
+### Memory Mutations This Session
+- `memory/PROGRESS.md`: This entry
+- `memory/FAILURES.md`: No new failures (no previously unknown failures encountered)
+- `memory/agent_manifests/implementation-20260528-session.json`: Created; `completion_verdict=pass`
+
+### Completion Verdict
+PASS — all 7 eligible issues have open PRs; all PR branches exist; all PRs have `Closes #N` refs; all issues have PR link comments; no PRs merged; no issues manually closed.
+
+---
+
 ## Session: 2026-05-28 (claude/degenexus-audit-phase-LxvN7) — FDD+FSV AUDIT COMPLETE
 
 ### Audit Baseline

@@ -1,0 +1,106 @@
+{
+  "session_id": "claude/degenexus-forensic-impl-GpA5n",
+  "date": "2026-05-28",
+  "phase": "implementation",
+  "issues_seen": [84, 85, 86, 87, 88, 89, 91],
+  "issues_eligible": [84, 85, 86, 87, 88, 89, 91],
+  "skipped": [],
+  "branches": {
+    "84": "codex/issue-84",
+    "85": "codex/issue-85",
+    "86": "codex/issue-86",
+    "87": "codex/issue-87",
+    "88": "codex/issue-88",
+    "89": "codex/issue-89",
+    "91": "codex/issue-91"
+  },
+  "prs": {
+    "84": {"number": 96, "url": "https://github.com/JackSmack1971/degenexus/pull/96"},
+    "85": {"number": 95, "url": "https://github.com/JackSmack1971/degenexus/pull/95"},
+    "86": {"number": 97, "url": "https://github.com/JackSmack1971/degenexus/pull/97"},
+    "87": {"number": 94, "url": "https://github.com/JackSmack1971/degenexus/pull/94"},
+    "88": {"number": 98, "url": "https://github.com/JackSmack1971/degenexus/pull/98"},
+    "89": {"number": 93, "url": "https://github.com/JackSmack1971/degenexus/pull/93"},
+    "91": {"number": 99, "url": "https://github.com/JackSmack1971/degenexus/pull/99"}
+  },
+  "pr_issue_comments": {
+    "84": "https://github.com/JackSmack1971/degenexus/issues/84#issuecomment-4564115604",
+    "85": "https://github.com/JackSmack1971/degenexus/issues/85#issuecomment-4564101740",
+    "86": "https://github.com/JackSmack1971/degenexus/issues/86#issuecomment-4564126288",
+    "87": "https://github.com/JackSmack1971/degenexus/issues/87#issuecomment-4564051904",
+    "88": "https://github.com/JackSmack1971/degenexus/issues/88#issuecomment-4564133178",
+    "89": "https://github.com/JackSmack1971/degenexus/issues/89#issuecomment-4564043886",
+    "91": "https://github.com/JackSmack1971/degenexus/issues/91#issuecomment-4564141350"
+  },
+  "pre_fix_head": "e89da86aa72487095b4ae05017688233516f0de0",
+  "pre_fix_tests": "363 passed, 5 skipped",
+  "commands_run": [
+    "git checkout -b codex/issue-N origin/main (×7)",
+    "python3 -m pytest tests/ -q --tb=no",
+    "python3 -m pytest tests/ --cov=src --cov-report=term-missing -q --tb=no",
+    "ruff check src/ tests/",
+    "ruff check tests/ src/ --fix",
+    "python3 -m mypy src/",
+    "git add ... && git commit -m ...",
+    "git push -u origin codex/issue-N (×7)"
+  ],
+  "issue_fsv_results": {
+    "84": {
+      "root_cause": "No ruff/lint gate on test files; unused imports from prior refactors",
+      "fix": "ruff --fix + 4 manual F841 removals",
+      "pre": "27 ruff errors",
+      "post": "0 ruff errors; 363 tests pass",
+      "files_changed": 15
+    },
+    "85": {
+      "root_cause": "Tests mocked at call_llm() level above untested provider-dispatch and error-handler branches",
+      "fix": "+25 tests across 4 test files covering _init_client, _raw_llm_call, _fallback, design_proposal, _parse_proposal, assess_contextual_risk, _contextual_assess, _fetch_yfinance paths",
+      "pre": "base_agent:86%, quant_agent:80%, risk_manager:86%, market_feed:87%",
+      "post": "all 4 at 100%; TOTAL 97%; 388 tests pass",
+      "files_changed": 4
+    },
+    "86": {
+      "root_cause": "No [tool.mypy] config; missing stub packages for pandas/requests; no per-module overrides for ta/yfinance/anthropic/openai",
+      "fix": "Added [tool.mypy] + [[tool.mypy.overrides]] to pyproject.toml; added pandas-stubs and types-requests to requirements.txt",
+      "pre": "7 mypy errors in 4 files",
+      "post": "Success: no issues found in 35 source files",
+      "files_changed": 2
+    },
+    "87": {
+      "root_cause": "Ad-hoc utility script used os.environ.get() bypassing Settings pydantic-settings SecretStr boundary",
+      "fix": "Replaced os.environ.get('OPENROUTER_API_KEY') with Settings().openrouter_api_key.get_secret_value()",
+      "pre": "grep -n os.environ src/get-model-list.py → line 6",
+      "post": "grep -n os.environ src/get-model-list.py → 0 results",
+      "files_changed": 1
+    },
+    "88": {
+      "root_cause": "Docstring written before RISK_HARD_GATE was formalized; LEARN phase was planned but never implemented",
+      "fix": "Updated orchestrator.py:40 class docstring to correct 8-phase sequence",
+      "pre": "grep LEARN src/orchestrator.py → line 40",
+      "post": "grep LEARN src/orchestrator.py → 0 results; RISK_HARD_GATE present",
+      "files_changed": 1
+    },
+    "89": {
+      "root_cause": "Runtime environment is Python 3.11.15 but pyproject.toml declared requires-python>=3.12",
+      "fix": "Changed requires-python from >=3.12 to >=3.11; updated CLAUDE.md CORE STACK PARAMETERS",
+      "pre": "requires-python = '>=3.12'; python3 --version = 3.11.15",
+      "post": "requires-python = '>=3.11'; 363 tests pass",
+      "files_changed": 2
+    },
+    "91": {
+      "root_cause": "main.py written before portfolio= DI injection existed (issue #51); never updated after DI was added",
+      "fix": "Removed os.environ['STARTING_CAPITAL'] = str(args.capital); added Portfolio(starting_capital=args.capital) via DI",
+      "pre": "grep os.environ main.py → line 142",
+      "post": "grep os.environ main.py → only LOG_LEVEL/ANTHROPIC_API_KEY references; 363 tests pass",
+      "files_changed": 1
+    }
+  },
+  "memory_files_updated": [
+    "memory/PROGRESS.md",
+    "memory/FAILURES.md",
+    "memory/agent_manifests/implementation-20260528-session.json"
+  ],
+  "all_eligible_issues_have_prs": true,
+  "forbidden_actions_performed": false,
+  "completion_verdict": "pass"
+}
