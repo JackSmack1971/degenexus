@@ -1,5 +1,39 @@
 # PROGRESS
 
+## Session: 2026-05-28 (claude/pr-review-merge-phase-axzKk) — PR REVIEW + MERGE PHASE COMPLETE
+
+### All 7 Implementation PRs Squash-Merged to main
+
+| PR | Issue | Merge SHA | Fix Summary | Issue Closed |
+|----|-------|-----------|-------------|--------------|
+| #95 | #85 coverage gap | 0ba6146 | +25 tests → 4 files at 100%; TOTAL 97% | ✅ |
+| #93 | #89 python version | def668d | requires-python >=3.11 | ✅ |
+| #94 | #87 secrets policy | 810a59b | os.environ.get() → Settings() | ✅ |
+| #96 | #84 ruff violations | b591f20 | 27 violations → 0 | ✅ |
+| #97 | #86 mypy config | 101fa1a | [tool.mypy] + stubs → mypy clean | ✅ |
+| #98 | #88 stale docstring | 643e28b | RISK_HARD_GATE added, LEARN removed | ✅ |
+| #99 | #91 Portfolio DI | 376e420 | os.environ mutation → DI injection | ✅ |
+
+### Mid-Review Fix
+PR #95 introduced 4 ruff F401 violations in new test files. Fixed with `ruff --fix` and pushed to codex/issue-85 before squash-merge. Net ruff result: CLEAN.
+
+### Post-Merge FSV (main HEAD 376e420)
+- **Tests:** 389 passed, 4 skipped
+- **Coverage:** TOTAL 97%; base_agent:100%, quant_agent:100%, risk_manager:100%, market_feed:100%
+- **Ruff:** CLEAN (All checks passed)
+- **pyflakes:** CLEAN
+- **Radon:** A average (2.951)
+- **mypy:** Success: no issues found in 35 source files
+
+### Memory Mutations This Session
+- `memory/PROGRESS.md`: This entry
+- `memory/agent_manifests/review-merge-20260528-session.json`: Created; `completion_verdict=pass`
+
+### Completion Verdict
+PASS — all 7 eligible PRs squash-merged; all 7 linked issues closed; zero eligible open issues or PRs remain; all FSV gates pass on main HEAD 376e420.
+
+---
+
 ## Session: 2026-05-28 (claude/degenexus-forensic-impl-GpA5n) — IMPLEMENTATION+PR PHASE COMPLETE
 
 ### Session Baseline
