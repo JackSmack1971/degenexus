@@ -66,3 +66,49 @@
 - **Root cause:** Incomplete auditor runtime toolchain.
 - **Blast radius:** Cannot verify complexity and dependency-vulnerability gates.
 - **Containment:** Track as environment blocker; rerun in provisioned environment.
+---
+
+## 2026-05-27 — FDD+FSV audit-only findings (claude/fdd-fsv-audit-degenexus-rM1g1)
+
+### F-004 — 27 ruff lint violations in test suite (F401/F811/F841)
+- **Failure mode:** `ruff check src/ tests/` exits 1 with 27 findings. All are in test files; `pyflakes src/` passes.
+- **Physical evidence:** 13 test files affected; all F401 (unused import), F811 (redefinition), or F841 (assigned-but-unused). 23 auto-fixable.
+- **Root cause:** No ruff/static lint gate enforced on test files at commit boundary; unused imports accumulated from refactors.
+- **Blast radius:** CI lint gate non-compliance; dead test imports can mask brittle tests.
+- **Issue:** #84
+
+### F-005 — 4 source files below 90% coverage threshold
+- **Failure mode:** base_agent.py(89%), quant_agent.py(80%), risk_manager.py(86%), market_feed.py(87%) all below the 90% target.
+- **Physical evidence:** `pytest --cov=src --cov-report=term-missing` — uncovered lines are LLM-provider dispatch branches, error handlers, and yfinance network call.
+- **Root cause:** Tests mock at `call_llm()` level, above the untested provider-dispatch/error-handler/network code paths.
+- **Blast radius:** Production fallback paths untested; `quant_agent._parse_proposal` error path could silently return None.
+- **Issue:** #85
+
+### F-006 — mypy strict mode fails with 7 import-untyped errors
+- **Failure mode:** `python3 -m mypy src/` exits 1 with 7 errors; passes only with `--ignore-missing-imports`.
+- **Physical evidence:** Missing stubs: pandas-stubs, types-requests; no py.typed marker for ta, yfinance.
+- **Root cause:** No stub packages in requirements.txt; no `[tool.mypy]` config in pyproject.toml.
+- **Blast radius:** mypy gate cannot run without suppression flag; typed contracts in indicators.py/market_feed.py unverifiable.
+- **Issue:** #86
+
+### F-007 — src/get-model-list.py reads API key via os.environ.get() — Security Policy violation
+- **Failure mode:** `src/get-model-list.py:6` — `API_KEY = os.environ.get("OPENROUTER_API_KEY")` bypasses `Settings` pydantic-settings.
+- **Physical evidence:** File absent from CLAUDE.md architecture; excluded from coverage; makes live external HTTP calls; bypasses `openrouter_client.py`.
+- **Root cause:** Ad-hoc utility script added without security review; no `src.core.settings` import.
+- **Blast radius:** Secrets policy violation; sets precedent for direct env access; latent key exposure in logs/reprs.
+- **Issue:** #87
+
+### F-008 — orchestrator.py docstring + ARCHITECTURE.md show stale 8-phase cycle
+- **Failure mode:** Both show `RISK_EVALUATE` where `RISK_HARD_GATE → RISK_EVALUATE` should be; both show phantom `LEARN` phase.
+- **Physical evidence:** `orchestrator.py:40` docstring; `memory/ARCHITECTURE.md:6` — both have `...QUANT_DESIGN → RISK_EVALUATE...→ LEARN`.
+- **Root cause:** Docstring and ARCHITECTURE.md predate RISK_HARD_GATE introduction; LEARN phase was planned but never implemented.
+- **Blast radius:** Wrong mental model for new developers; RISK_HARD_GATE "is FINAL" invariant invisible in docs.
+- **Remediation applied this session:** ARCHITECTURE.md updated to correct phase sequence. orchestrator.py docstring still needs a code fix (issue #88).
+- **Issue:** #88
+
+### F-009 — pyproject.toml requires-python=">=3.12" but runtime is Python 3.11.15
+- **Failure mode:** `python3 --version` → 3.11.15; `pyproject.toml` → `requires-python = ">=3.12"`.
+- **Physical evidence:** 368 tests pass on 3.11.15; no hard 3.12-exclusive syntax in tested paths. `pip install .` on Python 3.11 would fail the version gate.
+- **Root cause:** Runtime environment provisioned with Python 3.11 despite CLAUDE.md declaring "Runtime: Python 3.12".
+- **Blast radius:** Contributors on Python 3.11 cannot install via pyproject.toml; subtle behavioral divergences possible.
+- **Issue:** #89
