@@ -1,5 +1,16 @@
 # FAILURES
 
+## F-010 — 2026-05-28 — src/main.py mutates os.environ["STARTING_CAPITAL"] bypassing Portfolio DI injection
+
+- **Failure mode:** `main.py:142` writes `os.environ["STARTING_CAPITAL"] = str(args.capital)` as a workaround for Portfolio capital propagation. The `portfolio=` DI injection param was added in issue #51 but `main.py` was never updated to use it.
+- **Physical evidence:** `src/main.py:142` + `src/core/portfolio.py:34` (os.getenv fallback) + `src/orchestrator.py:58` (DI injection point exists).
+- **Root cause:** `main.py` written before DI fix (#51); not updated after DI became available.
+- **Blast radius:** Global `os.environ` mutation; implicit capital config flow; DI injection intent obscured; env write is now dead code when Portfolio DI is used.
+- **Issue:** #91
+- **Never repeat:** After adding DI injection to any orchestrator subsystem, update `main.py` to pass the subsystem via DI instead of env mutation.
+
+---
+
 ## 2026-05-27 — Audit orchestration blocked by missing GitHub mutation tooling
 - **Failure mode:** Required forensic mutations (issue create/update) could not be executed from this environment.
 - **Physical evidence:** `gh` is not installed (`gh: command not found`), and `git remote -v` shows no configured remote, so repository default-branch metadata and authenticated mutation path are unavailable.

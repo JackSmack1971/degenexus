@@ -1,5 +1,62 @@
 # PROGRESS
 
+## Session: 2026-05-28 (claude/degenexus-audit-phase-LxvN7) — FDD+FSV AUDIT COMPLETE
+
+### Audit Baseline
+- Branch: `claude/degenexus-audit-phase-LxvN7`, HEAD: `3446adf15830e8ab1acc7265225ea2c49a961050`
+- Tests: **368 passed**, 0 failed
+- Coverage: **96% overall** (same 4 files below 90% threshold: base_agent:89%, quant_agent:80%, risk_manager:86%, market_feed:87%)
+- pyflakes src/: **CLEAN**
+- mypy `--ignore-missing-imports`: **CLEAN** (0 errors); strict mode: 7 errors (same as prior audit)
+- radon: **A average (2.951)** — no D/E/F methods; 4 C-rated methods (CC 12-20)
+- pip-audit: **No known vulnerabilities**
+- ruff check src/ tests/: **27 findings** (unchanged from prior audit)
+
+### Open Issues at Session Start
+- 6 open issues: #84, #85, #86, #87, #88, #89 (all from prior audit 2026-05-27)
+- 0 open PRs
+
+### Pre-Audit Issue Verification (FSV)
+
+All 6 prior issues confirmed reproduced on HEAD `3446adf`:
+
+| # | Title | Confirmation |
+|---|-------|-------------|
+| #84 | 27 ruff violations | `ruff check src/ tests/ → Found 27 errors` ✅ |
+| #85 | 4 files below 90% coverage | same 4 files same miss lines ✅ |
+| #86 | 7 mypy import-untyped errors | same 7 errors same 3 files ✅ |
+| #87 | get-model-list.py os.environ.get() | `grep -n "os.environ" src/get-model-list.py:6` ✅ |
+| #88 | orchestrator.py stale docstring | `orchestrator.py:40` still has LEARN + missing RISK_HARD_GATE ✅ |
+| #89 | requires-python>=3.12 vs Python 3.11.15 | `python3 --version → 3.11.15` ✅ |
+
+### New Anomaly Found and Issue Map
+
+| ID | Anomaly | Issue | Priority |
+|----|---------|-------|----------|
+| A7 | src/main.py:142 mutates os.environ["STARTING_CAPITAL"] — Portfolio DI injection exists but unused | [#91](https://github.com/JackSmack1971/degenexus/issues/91) | p3 |
+
+### Additional Audit Coverage (no new issues)
+
+- pip-audit: CLEAN — no vulnerabilities
+- Radon: no D/E/F methods; 4 C-rated methods (monitor_cycle CC=14, build_context CC=20, check_hard_rules CC=13, list_free_active_models CC=12) — C does not trigger required refactor issue per doctrine
+- PerformanceAnalytics.compute: confirmed at B(6) — issue #58 fix verified
+- test_market_feed.py: properly mocks _fetch_yfinance — no real network calls
+- test_indicators.py: conditional pytest.skip for ta-absent environments — correct pattern
+- Prompt injection sanitization: ceo_agent, quant_agent, risk_manager all call _sanitize_external_text() before LLM prompt injection ✅
+- DI integrity: all agent constructors use proper DI patterns ✅
+- conftest.py: Portfolio(starting_capital=10000) uses explicit DI ✅
+
+### Memory Mutations This Session
+
+- `memory/FAILURES.md`: F-010 entry added
+- `memory/PROGRESS.md`: This session entry added
+- `memory/agent_manifests/audit-20260528-session.json`: Created with full audit results
+
+### Completion Verdict
+PASS — 1 new anomaly found and mapped to issue #91; all 6 prior open issues confirmed; no forbidden actions; no code edits; no PRs created.
+
+---
+
 ## Session: 2026-05-27 (claude/fdd-fsv-audit-degenexus-rM1g1) — FDD+FSV AUDIT COMPLETE
 
 ### Audit Baseline
