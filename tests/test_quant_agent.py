@@ -1,6 +1,7 @@
 """Tests for quant proposal validation."""
 
 import pytest
+from unittest.mock import MagicMock
 from pydantic import ValidationError
 
 from src.agents.quant_agent import QuantAgent
@@ -166,3 +167,117 @@ class TestFallbackProposal:
         assert p.position_value_usd == round(p.entry_price * p.position_size_shares, 2)
         assert p.max_loss_usd == round(p.entry_price * 0.015 * p.position_size_shares, 2)
         assert p.proposal_hash != ""
+
+
+# ── design_proposal() success/failure paths (lines 58-66) ────────────────────
+
+class TestDesignProposalPath:
+
+    def test_design_proposal_success_returns_trade_proposal(self, valid_signal):
+        """Lines 58-61: LLM call succeeds → _parse_proposal returns TradeProposal."""
+        agent = QuantAgent()
+        mock_response = {
+            "entry_type": "LIMIT",
+            "entry_price": 150.0,
+            "stop_loss": 147.5,
+            "take_profit": 155.0,
+            "position_size_shares": 5,
+            "position_value_usd": 750.0,
+            "max_loss_usd": 12.5,
+            "max_loss_pct": 0.00125,
+            "risk_reward_ratio": 2.0,
+            "portfolio_exposure_pct": 0.075,
+            "reasoning": "Kelly sizing test",
+        }
+        agent.call_llm = MagicMock(return_value=mock_response)
+        result = agent.design_proposal(valid_signal, portfolio_value=10_000.0, available_cash=5_000.0)
+        assert result is not None
+        assert result.entry_price == pytest.approx(150.0)
+        agent.call_llm.assert_called_once()
+
+    def test_design_proposal_exception_uses_fallback(self, valid_signal):
+        """Lines 62-66: exception in try block → _fallback_proposal returned."""
+        agent = QuantAgent()
+        agent.call_llm = MagicMock(side_effect=RuntimeError("LLM exploded"))
+        result = agent.design_proposal(valid_signal, portfolio_value=10_000.0, available_cash=5_000.0)
+        assert result is not None
+
+    def test_design_proposal_zero_portfolio_falls_back_to_none(self):
+        """Lines 62-66: zero portfolio_value → fallback_proposal returns None (price=0 guard)."""
+        sig = _make_signal("LONG", price=100.0)
+        sig.current_price = 0.0
+        agent = QuantAgent()
+        agent.call_llm = MagicMock(side_effect=RuntimeError("LLM fail"))
+        result = agent.design_proposal(sig, portfolio_value=0.0, available_cash=0.0)
+        assert result is None
+
+
+# ── _parse_proposal() success path (lines 134-135) ───────────────────────────
+
+class TestParseProposalSuccess:
+
+    def test_valid_long_response_returns_proposal_with_hash(self, valid_signal):
+        """Lines 134-135: valid response → TradeProposal with proposal_hash set."""
+        agent = QuantAgent()
+        response = {
+            "entry_type": "LIMIT",
+            "entry_price": 150.0,
+            "stop_loss": 147.5,
+            "take_profit": 155.0,
+            "position_size_shares": 5,
+            "position_value_usd": 750.0,
+            "max_loss_usd": 12.5,
+            "max_loss_pct": 0.00125,
+            "risk_reward_ratio": 2.0,
+            "portfolio_exposure_pct": 0.075,
+            "reasoning": "valid Kelly sizing",
+        }
+        proposal = agent._parse_proposal(response, valid_signal, portfolio_value=10_000.0)
+        assert proposal is not None
+        assert proposal.entry_price == pytest.approx(150.0)
+        assert proposal.proposal_hash is not None
+        assert proposal.stop_loss == pytest.approx(147.5)
+
+    def test_missing_required_key_returns_none(self, valid_signal):
+        """Lines 136-138: KeyError for missing required key → returns None."""
+        agent = QuantAgent()
+        result = agent._parse_proposal({}, valid_signal, portfolio_value=10_000.0)
+        assert result is None
+
+    def test_non_numeric_entry_price_returns_none(self, valid_signal):
+        """Lines 136-138: ValueError from float('bad') → returns None."""
+        agent = QuantAgent()
+        response = {
+            "entry_type": "LIMIT",
+            "entry_price": "not_a_float",
+            "stop_loss": 147.5,
+            "take_profit": 155.0,
+            "position_size_shares": 5,
+            "position_value_usd": 750.0,
+            "max_loss_usd": 12.5,
+            "max_loss_pct": 0.00125,
+            "risk_reward_ratio": 2.0,
+            "portfolio_exposure_pct": 0.075,
+        }
+        result = agent._parse_proposal(response, valid_signal, portfolio_value=10_000.0)
+        assert result is None
+
+
+# ── _fallback() dict return (line 183) ───────────────────────────────────────
+
+class TestQuantFallbackMethod:
+
+    def test_fallback_returns_limit_entry_dict(self):
+        """Line 183: _fallback() returns the LIMIT fallback dict."""
+        agent = QuantAgent()
+        result = agent._fallback("context string")
+        assert result["entry_type"] == "LIMIT"
+        assert "[FALLBACK]" in result["reasoning"]
+
+    def test_fallback_called_when_client_none(self, valid_signal):
+        """call_llm with client=None → _fallback() dict is returned by call_llm."""
+        agent = QuantAgent()
+        # _TestAgent bypasses init; QuantAgent() has _client=None (no API key)
+        assert agent._client is None
+        raw = agent.call_llm("sys", "ctx")
+        assert raw["entry_type"] == "LIMIT"

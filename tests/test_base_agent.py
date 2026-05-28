@@ -1,6 +1,7 @@
 """Tests for BaseAgent: JSON parsing, context injection, retry, fallback."""
 
 import json
+import sys
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -137,3 +138,133 @@ class TestSanitizeExternalText:
         agent = _TestAgent()
         result = agent._sanitize_external_text("before ```code``` after")
         assert "```" not in result
+
+
+class TestInitClient:
+    """Lines 69-77 of base_agent.py — _init_client() Anthropic paths."""
+
+    def _make_bare_agent(self):
+        agent = BaseAgent.__new__(BaseAgent)
+        agent.agent_id = "TEST"
+        agent.performance_context = ""
+        return agent
+
+    def test_no_api_key_returns_fallback(self, mocker):
+        """Line 64-68: anthropic_api_key is None → ('fallback', None)."""
+        mock_settings = mocker.MagicMock()
+        mock_settings.llm_provider = "anthropic"
+        mock_settings.anthropic_api_key = None
+        mock_settings.llm_timeout_seconds = 30.0
+        mocker.patch("src.agents.base_agent.Settings", return_value=mock_settings)
+
+        agent = self._make_bare_agent()
+        provider, client = agent._init_client()
+        assert provider == "fallback"
+        assert client is None
+
+    def test_valid_api_key_inits_anthropic_client(self, mocker):
+        """Lines 69-74: API key set + anthropic importable → ('anthropic', client)."""
+        mock_key = mocker.MagicMock()
+        mock_key.get_secret_value.return_value = "sk-test-key"
+        mock_settings = mocker.MagicMock()
+        mock_settings.llm_provider = "anthropic"
+        mock_settings.anthropic_api_key = mock_key
+        mock_settings.llm_timeout_seconds = 30.0
+        mocker.patch("src.agents.base_agent.Settings", return_value=mock_settings)
+
+        mock_anthropic_client = mocker.MagicMock()
+        mock_anthropic_module = mocker.MagicMock()
+        mock_anthropic_module.Anthropic.return_value = mock_anthropic_client
+        mocker.patch.dict(sys.modules, {"anthropic": mock_anthropic_module})
+
+        agent = self._make_bare_agent()
+        provider, client = agent._init_client()
+        assert provider == "anthropic"
+        assert client is mock_anthropic_client
+
+    def test_anthropic_import_error_returns_fallback(self, mocker):
+        """Lines 75-77: ImportError for anthropic → ('fallback', None)."""
+        mock_key = mocker.MagicMock()
+        mock_key.get_secret_value.return_value = "sk-test-key"
+        mock_settings = mocker.MagicMock()
+        mock_settings.llm_provider = "anthropic"
+        mock_settings.anthropic_api_key = mock_key
+        mock_settings.llm_timeout_seconds = 30.0
+        mocker.patch("src.agents.base_agent.Settings", return_value=mock_settings)
+        mocker.patch.dict(sys.modules, {"anthropic": None})
+
+        agent = self._make_bare_agent()
+        provider, client = agent._init_client()
+        assert provider == "fallback"
+        assert client is None
+
+
+class TestRawLlmCall:
+    """Lines 108-123 of base_agent.py — _raw_llm_call() dispatch branches."""
+
+    def test_openrouter_branch_calls_client_chat(self):
+        """Lines 117-121: openrouter provider → client.chat() called."""
+        agent = _TestAgent()
+        agent._provider = "openrouter"
+        mock_client = MagicMock()
+        mock_client.chat.return_value = '{"result": "ok"}'
+        agent._client = mock_client
+        result = agent._raw_llm_call("system prompt", "user message")
+        assert result == '{"result": "ok"}'
+        mock_client.chat.assert_called_once_with(
+            system_prompt="system prompt",
+            user_message="user message",
+        )
+
+    def test_unknown_provider_raises_runtime_error(self):
+        """Line 123: unknown provider → RuntimeError('No LLM client available')."""
+        agent = _TestAgent()
+        agent._provider = "unknown_provider"
+        agent._client = MagicMock()
+        with pytest.raises(RuntimeError, match="No LLM client available"):
+            agent._raw_llm_call("sys", "usr")
+
+    def test_anthropic_provider_calls_messages_create(self):
+        """Lines 108-115: anthropic provider → client.messages.create() called."""
+        agent = _TestAgent()
+        agent._provider = "anthropic"
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text="  {\"ok\": true}  ")]
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_response
+        agent._client = mock_client
+        result = agent._raw_llm_call("system prompt", "user message")
+        assert result == '{"ok": true}'
+        mock_client.messages.create.assert_called_once()
+
+
+class TestBaseFallback:
+    """Line 168 of base_agent.py — _fallback() must raise NotImplementedError."""
+
+    def test_base_fallback_raises_not_implemented(self):
+        """Subclasses that forget to override _fallback() get a NotImplementedError."""
+        class _NoFallbackAgent(BaseAgent):
+            def __init__(self):
+                self.agent_id = "NO_FALLBACK"
+                self.performance_context = ""
+                self._provider = "fallback"
+                self._client = None
+                self._llm_timeout_seconds = 30
+
+        agent = _NoFallbackAgent()
+        with pytest.raises(NotImplementedError):
+            agent._fallback("context")
+
+    def test_base_fallback_message_includes_agent_id(self):
+        """NotImplementedError message contains the agent_id."""
+        class _NamedAgent(BaseAgent):
+            def __init__(self):
+                self.agent_id = "MY_AGENT"
+                self.performance_context = ""
+                self._provider = "fallback"
+                self._client = None
+                self._llm_timeout_seconds = 30
+
+        agent = _NamedAgent()
+        with pytest.raises(NotImplementedError, match="MY_AGENT"):
+            agent._fallback("ctx")

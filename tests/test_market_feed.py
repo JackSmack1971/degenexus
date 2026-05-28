@@ -153,3 +153,92 @@ class TestDataCacheAge:
         bars = [_make_bar()]
         cache = _make_cache(bars, age_seconds=7201.0)
         assert cache.is_stale(7200.0) is True
+
+
+# ── _fetch_yfinance() (lines 105-128) ────────────────────────────────────────
+
+class TestFetchYfinance:
+    """Cover the _fetch_yfinance() method via yfinance.Ticker mock."""
+
+    def test_returns_sorted_ohlcv_bars(self, mocker):
+        """Lines 105-128: valid DataFrame → sorted OHLCVBar list."""
+        import pandas as pd
+
+        dates = pd.DatetimeIndex([
+            pd.Timestamp("2024-01-03", tz="UTC"),
+            pd.Timestamp("2024-01-02", tz="UTC"),  # reversed to verify sort
+        ])
+        df = pd.DataFrame({
+            "Open": [101.0, 100.0],
+            "High": [106.0, 105.0],
+            "Low": [100.0, 99.0],
+            "Close": [105.0, 104.0],
+            "Volume": [1_200_000.0, 1_000_000.0],
+        }, index=dates)
+
+        mock_ticker = mocker.MagicMock()
+        mock_ticker.history.return_value = df
+        mocker.patch("yfinance.Ticker", return_value=mock_ticker)
+
+        feed = MarketFeed()
+        bars = feed._fetch_yfinance("AAPL", period="5d", interval="1d")
+
+        assert len(bars) == 2
+        assert bars[0].close == pytest.approx(104.0)   # earlier date first
+        assert bars[1].close == pytest.approx(105.0)
+        assert bars[0].symbol == "AAPL"
+        assert bars[0].source == "yfinance"
+        assert bars[0].volume == pytest.approx(1_000_000.0)
+
+    def test_empty_dataframe_raises_value_error(self, mocker):
+        """Lines 109-110: empty DataFrame → ValueError raised."""
+        import pandas as pd
+
+        mock_ticker = mocker.MagicMock()
+        mock_ticker.history.return_value = pd.DataFrame()
+        mocker.patch("yfinance.Ticker", return_value=mock_ticker)
+
+        feed = MarketFeed()
+        with pytest.raises(ValueError, match="empty DataFrame"):
+            feed._fetch_yfinance("AAPL", period="5d", interval="1d")
+
+    def test_naive_timestamps_get_utc_tzinfo(self, mocker):
+        """Lines 115-117: naive timestamps → UTC tzinfo applied."""
+        import pandas as pd
+        from datetime import timezone as tz
+
+        dates = pd.DatetimeIndex([pd.Timestamp("2024-01-02")])  # no timezone
+        df = pd.DataFrame({
+            "Open": [100.0], "High": [105.0], "Low": [99.0],
+            "Close": [104.0], "Volume": [1_000_000.0],
+        }, index=dates)
+
+        mock_ticker = mocker.MagicMock()
+        mock_ticker.history.return_value = df
+        mocker.patch("yfinance.Ticker", return_value=mock_ticker)
+
+        feed = MarketFeed()
+        bars = feed._fetch_yfinance("AAPL", period="5d", interval="1d")
+
+        assert len(bars) == 1
+        assert bars[0].timestamp.tzinfo is not None
+
+    def test_tz_aware_timestamps_preserved(self, mocker):
+        """Lines 118-119: tz-aware timestamps use to_pydatetime() without replace."""
+        import pandas as pd
+
+        dates = pd.DatetimeIndex([pd.Timestamp("2024-01-02T12:00:00+05:00")])
+        df = pd.DataFrame({
+            "Open": [100.0], "High": [105.0], "Low": [99.0],
+            "Close": [104.0], "Volume": [500_000.0],
+        }, index=dates)
+
+        mock_ticker = mocker.MagicMock()
+        mock_ticker.history.return_value = df
+        mocker.patch("yfinance.Ticker", return_value=mock_ticker)
+
+        feed = MarketFeed()
+        bars = feed._fetch_yfinance("AAPL", period="5d", interval="1d")
+
+        assert len(bars) == 1
+        assert bars[0].close == pytest.approx(104.0)
