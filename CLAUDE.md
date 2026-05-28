@@ -94,6 +94,11 @@ Use `.claude/rules/02-agent-synergy.md` as the single source of truth for specia
 
 Agent memory under `.claude/agent-memory/` records only recurring patterns, stable project facts, and dated evidence; never secrets or one-off task details.
 
+## COMPACTION RULES (always preserve)
+- Keep: full project architecture, open requirements, key APIs/endpoints, current task stack, any user-defined rules
+- Summarize only: conversation history, debug logs, non-critical examples
+- Never drop: file paths, function signatures, TODOs marked CRITICAL
+
 ## Escalation Triggers
 
 Stop and report when the SoT cannot be determined, security vulnerabilities are discovered, instructions conflict, verification evidence contradicts claims, or critical work approaches context compaction.
