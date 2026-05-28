@@ -1,609 +1,415 @@
 # Claude Code Internals Audit — Actionable Improvement Plan
 
-**Date:** 2026-05-28  
-**Scope:** `CLAUDE.md`, `.claude/agents/`, `.claude/skills/`, `.claude/commands/`, `.claude/rules/`, `.claude/imports/`, `.claude/output-styles/`, and `.claude/agent-memory/`.  
-**Constraint honored:** This audit creates recommendations only and does **not** modify the Claude setup files themselves.
+**Date:** 2026-05-28
+**Scope:** `CLAUDE.md`, `.claude/README.md`, `.claude/settings.json`, `.claude/agents/`, `.claude/skills/`, `.claude/commands/`, `.claude/rules/`, `.claude/imports/`, `.claude/output-styles/`, `.claude/hooks/`, and `.claude/agent-memory/`.
+**Deliverable constraint:** This file is recommendations-only. No Claude Code internals were modified in this audit refresh.
 
+## Research Baseline
 
-## Remediation Status — 2026-05-28 Single-PR Implementation
+This refresh cross-checked the local setup against the current Claude Code documentation and then verified the repository's actual configuration on disk.
 
-This audit has been converted from recommendations into a single implementation change. The map below gives downstream reviewers an exact issue-to-remediation index.
+### External references consulted
 
-| Audit issue | Status | Primary implementation points |
-| --- | --- | --- |
-| Invalid skill frontmatter | Addressed | Normalized `code-reviewer` and `forensic-debug` skill frontmatter; added `.claude/hooks/validate-claude-config.py`. |
-| Missing skill references | Addressed | Replaced missing `security-auditor` skill refs with local skills; rewrote slash commands away from plugin-only `agent-skills:*` references. |
-| Overlapping test roles | Addressed | Made `test-engineer` the single write-capable test agent; converted `test-writer` to a read-only deprecated alias. |
-| `/ship` generic/broad behavior | Addressed | Rebuilt `ship` agent and `/ship` command around DegenExus checks, approved specialists, config health, tests, secrets/DB checks, and GO/NO-GO output. |
-| Missing settings/hooks enforcement | Addressed | Added `.claude/settings.json`, post-edit config validation hook, and subagent lifecycle logging hook. |
-| Long always-loaded `CLAUDE.md` | Addressed | Slimmed `CLAUDE.md` to durable doctrine and moved detailed workflows into skills and `.claude/README.md`. |
-| Missing `.claude` internals map | Addressed | Added `.claude/README.md` with directory, agent, skill, command, and validation matrices. |
-| Missing DegenExus specialists | Addressed | Added risk, prompt-injection, trade-lifecycle, market-data-integrity, and docs/memory curator agents. |
-| Missing synergy skills | Addressed | Added config audit, risk-control, prompt-safety, SQLite SoT, and release-evidence-pack skills. |
-| Empty/misaligned agent memory | Addressed | Added memory write criteria and renamed security memory to `security-auditor`. |
-| Naming/description drift | Addressed | Normalized local agent/skill/command vocabulary and removed stale issue-specific test-agent behavior. |
+- Claude Code subagents documentation: <https://code.claude.com/docs/en/sub-agents>
+- Claude Code skills documentation: <https://code.claude.com/docs/en/skills>
+- Claude Code hooks documentation: <https://code.claude.com/docs/en/hooks>
+- Claude Code configuration documentation: <https://code.claude.com/docs/en/configuration>
+- Claude Code feature/context-cost overview: <https://code.claude.com/docs/en/features-overview>
+
+### Local evidence commands run
+
+```bash
+find .claude -maxdepth 4 -type f -print | sort
+python .claude/hooks/validate-claude-config.py
+python -m compileall -q .claude/hooks
+python - <<'PY'
+from pathlib import Path
+import yaml
+for p in sorted(Path('.claude/agents').glob('*.md')):
+    fm = yaml.safe_load(p.read_text().split('---', 2)[1]) or {}
+    if fm.get('memory') == 'project':
+        d = Path('.claude/agent-memory') / fm['name']
+        print(f'{fm["name"]}: MEMORY.md={(d / "MEMORY.md").exists()} memory.md={(d / "memory.md").exists()}')
+PY
+wc -l CLAUDE.md .claude/README.md .claude/agents/*.md .claude/skills/*/SKILL.md .claude/commands/*.md
+```
 
 ## Executive Summary
 
-DegenExus has a strong Claude Code foundation: a project-level doctrine, task-specialized agents, reusable skills, command wrappers, security rules, and agent memory folders. The main opportunity is to make the setup more internally consistent and more aligned with current Claude Code behavior: subagents are selected by `description`, scoped by frontmatter, can preload named skills, and may use project or user memory; skills are on-demand context modules with `SKILL.md` frontmatter; settings and hooks provide enforceable automation; and `/context`, `/agents`, `/skills`, `/hooks`, and `/doctor` are the operational checks for what actually loaded.
+The Claude Code internals are in much better shape than the stale prior audit implied: skill frontmatter parses, missing skill references have been removed, slash commands are project-specific, `.claude/settings.json` exists, and the local config validator passes. The remaining improvements are about **making the system more synergistic and enforceable**, not repairing a broken setup.
 
-The highest-value improvements are:
+Top priorities:
 
-1. **Fix invalid skill frontmatter** so Claude Code can discover and invoke all intended skills.
-2. **Align agent-to-skill references** by either adding missing skills or removing stale references.
-3. **Reduce duplicated / contradictory roles** between `code-reviewer`, `test-engineer`, `test-writer`, and `/ship`.
-4. **Add Claude Code settings and hooks** to enforce doctrine-critical checks automatically instead of relying only on prose.
-5. **Shorten and stratify `CLAUDE.md`** so always-loaded instructions stay high-signal while long playbooks move into skills, commands, or imports.
-6. **Introduce synergy-oriented agents and skills** that match DegenExus domains: risk-gate verifier, prompt-injection auditor, trade-lifecycle auditor, market-data integrity auditor, and documentation/issue closer.
+1. **Fix project agent memory loading.** Most agents declare `memory: project`, but the checked-in memory files are named `memory.md` and only exist for a subset of agents. Claude Code documentation says project memory is read from `.claude/agent-memory/<agent-name>/MEMORY.md`, with the first 200 lines or 25KB loaded. This likely means the intended project memory is not being loaded.
+2. **Split broad specialist prompts into concise prompts plus skill/reference files.** `security-auditor`, `fdd-investigator`, `code-reviewer`, and `test-engineer` contain long, reusable workflows that would be better expressed as skills or `references/` documents. This reduces subagent startup context and makes multiple agents share the same doctrine.
+3. **Make config validation match current Claude Code semantics.** The validator checks YAML and missing skill names, but it does not yet catch lowercase agent memory files, unavailable subagent tools, invalid/unknown frontmatter fields, hook matcher mistakes, or broad permission gaps.
+4. **Create explicit synergy contracts between agents and skills.** The agents mostly work in isolation. Add a small machine-readable handoff matrix so `/ship`, `/review`, `/audit`, and domain agents agree on which agent owns each risk surface and what evidence each must return.
+5. **Add manual-only flags for expensive or side-effect-prone skills.** Several skills are task workflows, not background knowledge. Claude Code supports `disable-model-invocation: true` for skills that should only run when invoked directly, reducing context noise and accidental activation.
 
-## Research Baseline Used
+## Current Inventory Snapshot
 
-The recommendations below are grounded in current Claude Code documentation and Anthropic guidance:
+### Project instruction layer
 
-- Project subagents live in `.claude/agents/`, are Markdown files with YAML frontmatter, and should have clear `description` fields because Claude uses those descriptions for automatic delegation. The docs state that project subagents are appropriate for codebase-specific specialists and should be checked into version control for team use. Source: [Claude Code subagents docs](https://code.claude.com/docs/en/sub-agents).
-- Subagent frontmatter supports `name`, `description`, `tools`, `disallowedTools`, `model`, `permissionMode`, `maxTurns`, `skills`, `memory`, `hooks`, `background`, `isolation`, and `color`. Only `name` and `description` are required, but the optional fields are key to constraining capabilities and preloading skills. Source: [Claude Code subagents docs](https://code.claude.com/docs/en/sub-agents).
-- Claude Code can preload skills into subagents via the subagent `skills` field; the full skill content is injected at startup for listed skills. Source: [Claude Code subagents docs](https://code.claude.com/docs/en/sub-agents).
-- Claude Code skills live under `.claude/skills/<skill-name>/SKILL.md` and should be used for reusable workflows that are invoked on demand rather than always loaded. Anthropic’s blog distinguishes `CLAUDE.md` as always-loaded coordination from skills as reusable task workflows. Sources: [Claude Code skills docs](https://code.claude.com/docs/en/skills), [Anthropic subagents blog](https://claude.com/blog/subagents-in-claude-code).
-- Project settings in `.claude/settings.json` are the official mechanism for permissions, hooks, environment variables, and tool behavior; many setting changes reload during a running session. Source: [Claude Code settings docs](https://code.claude.com/docs/en/settings).
-- Hooks can run on subagent lifecycle events such as `SubagentStart` and `SubagentStop`, and broader hook events can validate commands, edits, or session state. Source: [Claude Code hooks docs](https://code.claude.com/docs/en/hooks).
-- Claude Code configuration should be diagnosed with `/context`, `/memory`, `/skills`, `/agents`, `/hooks`, `/permissions`, `/doctor`, and `/status` to confirm what actually loaded. Source: [Claude Code debug configuration docs](https://code.claude.com/docs/en/debug-your-config).
+- `CLAUDE.md` is concise at 99 lines, below the Claude Code guidance to keep project memory under roughly 200 lines and move long workflows to skills.
+- `.claude/README.md` provides a useful map of commands, agents, skills, hooks, and validation.
+- `.claude/rules/01-security.md`, `.claude/imports/doctrine-summary.md`, and `.claude/output-styles/doctrine-engineer.md` provide supporting doctrine.
 
-## Current Inventory
+### Agents
 
-### Always-loaded / coordination layer
+Current project agents:
 
-- `CLAUDE.md` defines the unified engineering doctrine, turn-start ritual, project identity, stack, commands, architecture, invariants, FSV law, FDD law, security policy, testing policy, and technical debt notes.
-- `.claude/rules/01-security.md` contains threat-model, prompt-injection, secrets, input-validation, and dependency-audit rules.
-- `.claude/imports/doctrine-summary.md` and `.claude/output-styles/doctrine-engineer.md` provide doctrine and output-style support.
+- `code-reviewer`
+- `docs-memory-curator`
+- `fdd-investigator`
+- `market-data-integrity-auditor`
+- `prompt-injection-auditor`
+- `risk-gate-verifier`
+- `security-auditor`
+- `ship`
+- `test-engineer`
+- `test-writer` deprecated compatibility alias
+- `trade-lifecycle-auditor`
 
-### Subagents
+Notable positives:
 
-| Agent | Intended role | Current capability posture | Notable issue |
-| --- | --- | --- | --- |
-| `code-reviewer` | Five-dimension read-only review | `Read`, `Grep`, `Glob`; no writes or shell | Good separation of concerns; no preloaded review skill despite similarly named skill. |
-| `fdd-investigator` | Root-cause / incident investigation | Read + Bash, no writes | Strong FDD fit; preloads valid-looking `forensic-debug` and `fsv-verify`, but `forensic-debug` frontmatter currently fails YAML parsing. |
-| `security-auditor` | Security audit | Read-only, no shell | References missing skills `owasp-vulnerability-checker` and `dependency-audit`. |
-| `ship` | Pre-merge fan-out coordinator | `Agent`, `Read`, `Glob` | Good orchestrator concept; should be paired with hooks/settings and have allowed subagent list tightened. |
-| `test-engineer` | Test design/write/coverage analysis | Read/write/edit/bash | Overlaps heavily with `test-writer`; no explicit `skills` field. |
-| `test-writer` | Pytest suites for DegenExus | Read/write/edit/bash; preloads `edge-case-audit`, `fsv-verify` | Contains stale issue references and overlaps with `test-engineer`. |
+- Most specialist agents are read-only and set `permissionMode: dontAsk`, which is appropriate for auditors.
+- `ship` has a restricted `Agent(...)` allowlist for known child agents.
+- `test-engineer` is the only active write-capable testing agent; `test-writer` is deprecated and read-only.
+- Domain-specific auditors exist for risk, prompt injection, market data, and trade lifecycle rather than overloading the generic security or review agents.
 
 ### Skills
 
-| Skill path | Intended role | Current discovery risk |
-| --- | --- | --- |
-| `.claude/skills/code-reviewer/SKILL.md` | Code review workflow | **High:** YAML frontmatter indentation is invalid; fields after `tools` are nested incorrectly. |
-| `.claude/skills/forensic-debug/SKILL.md` | Forensic debugging workflow | **High:** YAML frontmatter fails parsing because the long unquoted description contains colon-heavy trigger text. |
-| `.claude/skills/edge-case-audit/SKILL.md` | Boundary/failure-mode reasoning | Low: frontmatter parses. |
-| `.claude/skills/fsv-verify/SKILL.md` | Full State Verification workflow | Low: frontmatter parses. |
-| `.claude/skills/code-reviewer/references/review-template.md` | Supporting reference | Expected to have no frontmatter. |
-| `.claude/skills/test` | Empty/placeholder file | Medium: stray file can confuse maintainers; should be removed or converted into a real skill directory. |
+Current project skills:
 
-### Slash commands
+- `claude-config-audit`
+- `code-reviewer`
+- `edge-case-audit`
+- `forensic-debug`
+- `fsv-verify`
+- `prompt-safety-review`
+- `release-evidence-pack`
+- `risk-control-audit`
+- `sqlite-sot-verify`
 
-| Command | Intended role | Notable issue |
-| --- | --- | --- |
-| `/build` | Incremental implementation | References `agent-skills:*` names that are not present in this repo. |
-| `/code-simplify` | Simplification workflow | References missing `agent-skills:code-simplification`. |
-| `/plan` | Task planning | References missing `agent-skills:planning-and-task-breakdown`. |
-| `/review` | Review workflow | References missing `agent-skills:code-review-and-quality`; duplicates local `code-reviewer` agent/skill naming. |
-| `/ship` | Pre-launch fan-out | Good concept, but has generic web/app checks that do not match DegenExus terminal simulator as tightly as it could. |
-| `/spec` | Spec-driven development | References missing `agent-skills:spec-driven-development`. |
-| `/test` | TDD workflow | References missing `agent-skills:test-driven-development` and browser DevTools skill that are not present. |
+Notable positives:
 
-## Priority Findings and Actions
+- Skills use the required `.claude/skills/<skill-name>/SKILL.md` layout.
+- Skill descriptions are short enough to avoid the documented 1,536-character description/listing cap.
+- There are no stale `agent-skills:*` references in slash commands.
+- The current validator reports `claude config validation ok`.
 
-### P0 — Fix skill discoverability before adding more automation
+### Commands, settings, and hooks
 
-**Finding:** Two important skills appear to have invalid YAML frontmatter:
+- Slash commands are compact and DegenExus-specific.
+- `.claude/settings.json` denies obvious destructive and secret-reading patterns.
+- `PostToolUse` runs `.claude/hooks/validate-claude-config.py` after `Write|Edit|MultiEdit`.
+- `SubagentStart` and `SubagentStop` call `.claude/hooks/log-subagent-event.py`.
+- Hook scripts compile successfully with `python -m compileall -q .claude/hooks`.
 
-- `.claude/skills/code-reviewer/SKILL.md` has `disallowedTools`, `model`, `effort`, `permissionMode`, `maxTurns`, and `user-invocable` indented under the `tools` list rather than at the top level.
-- `.claude/skills/forensic-debug/SKILL.md` uses a very long unquoted scalar with colon-containing trigger phrases; the YAML parser reports `mapping values are not allowed here`.
+## Findings and Actionable Improvements
 
-**Why it matters:** Skills are only useful if Claude Code can discover their frontmatter and decide when to load them. Invalid frontmatter makes the skill invisible or partially unusable, and can break `skills:` preloading from agents.
+### P0 — Rename and normalize project agent memory files
 
-**Action plan:**
+**Finding:** Claude Code's subagent memory documentation describes project memory at `.claude/agent-memory/<agent-name>/MEMORY.md`. The local tree has lowercase `memory.md` for `fdd-investigator`, `security-auditor`, and deprecated `test-writer`; the other `memory: project` agents have no checked-in memory file.
 
-1. Convert every skill frontmatter block to a small, stable pattern:
-
-   ```yaml
-   ---
-   name: forensic-debug
-   description: >
-     Activate for forensic debugging of software systems when symptoms indicate
-     violated invariants, contradictory evidence, unreliable logs, production
-     incidents, Heisenbugs, or causal timeline reconstruction.
-   ---
-   ```
-
-2. Keep colons and quoted trigger phrases in the Markdown body rather than in a one-line YAML scalar.
-3. Add a lightweight validation command to the repo documentation or hooks:
-
-   ```bash
-   python - <<'PY'
-   from pathlib import Path
-   import yaml
-   for path in sorted(Path('.claude').rglob('*.md')):
-       text = path.read_text()
-       if text.startswith('---'):
-           yaml.safe_load(text.split('---', 2)[1])
-   PY
-   ```
-
-4. Treat invalid `.claude/**` frontmatter as a pre-merge blocker in `/ship`.
-
-### P0 — Resolve missing skill references
-
-**Finding:** Several agents and commands reference skills that do not exist locally:
-
-- `security-auditor` references `owasp-vulnerability-checker` and `dependency-audit`.
-- `/build`, `/code-simplify`, `/plan`, `/review`, `/spec`, and `/test` reference `agent-skills:*` names that are not represented in `.claude/skills/`.
-- `/test` references browser DevTools, which is not aligned with this terminal-only simulator unless explicitly added as an external MCP workflow.
-
-**Why it matters:** Missing skills create false confidence: command text says a reusable workflow was invoked, but there is no local skill for Claude Code to load.
-
-**Action plan:**
-
-1. Either create these local skills or rewrite commands to call existing project agents/skills.
-2. Prefer project-specific names over generic `agent-skills:*` labels:
-   - `agent-skills:test-driven-development` → `edge-case-audit` + `fsv-verify` + DegenExus pytest instructions.
-   - `agent-skills:code-review-and-quality` → `code-reviewer` subagent plus code-reviewer skill once fixed.
-   - `agent-skills:shipping-and-launch` → `ship` subagent.
-3. If these names were intended to come from a plugin, document the plugin dependency in `CLAUDE.md` or `.claude/README.md` and add a `/doctor` verification step.
-
-### P1 — Consolidate overlapping test roles
-
-**Finding:** `test-engineer` and `test-writer` both write tests, both can edit files, and both use pytest concepts. `test-writer` is more DegenExus-specific, while `test-engineer` is broader.
-
-**Why it matters:** Overlapping descriptions can reduce automatic delegation quality and create inconsistent test style.
+**Why it matters:** The memory feature only helps if Claude Code can discover the expected file. If lowercase files are ignored, the repository has an apparent memory layer that is not actually injected into subagent contexts. This weakens the intended synergy between repeated specialist reviews.
 
 **Recommended target state:**
 
-- Keep **one write-capable test agent** named `test-engineer` for all test authoring.
-- Fold DegenExus-specific requirements from `test-writer` into `test-engineer`:
-  - FSV-AAA structure.
-  - Use `pytest-mock` instead of `unittest.mock`.
-  - Mock LLM calls.
-  - Coverage target expectations.
-  - Explicit `skills: [edge-case-audit, fsv-verify]`.
-- Convert `test-writer` into either:
-  - A read-only coverage-planning agent, or
-  - A deprecated alias with a brief body: “Use `test-engineer` instead.”
-
-**Action plan:**
-
-1. Rename or merge to avoid two agents competing for “write tests” tasks.
-2. Update `/ship` to fan out to the retained test agent only.
-3. Move stale issue-specific content out of agent prompts and into a dated memory or audit note.
-
-### P1 — Strengthen `/ship` as the central synergy orchestrator
-
-**Finding:** `ship` has the right architecture — fan out to code, security, and test specialists — but its tool policy is broad (`Agent` without narrowing), and the slash command contains generic website launch checks that do not fit DegenExus.
-
-**Why it matters:** The ship gate is the ideal place to make all specialists synergistic and consistent. It should be the highest-signal command for pre-merge validation.
-
-**Action plan:**
-
-1. Restrict the orchestrator’s agent tool to known child agents if supported in the current Claude Code version:
-
-   ```yaml
-   tools:
-     - Agent(code-reviewer,security-auditor,test-engineer,fdd-investigator)
-     - Read
-     - Glob
-   ```
-
-2. Make `/ship` explicitly DegenExus-oriented:
-   - Verify `python3 -m pytest tests/ -v` output.
-   - Verify `python3 -m compileall -q src/` output.
-   - Verify `python3 -m pyflakes src/` or equivalent if available.
-   - Verify no prompt-injection regression in agent prompt construction.
-   - Verify no secrets or SQLite DB files were introduced.
-3. Add escalation logic:
-   - If tests fail → spawn `fdd-investigator` read-only first, then a write-capable implementation agent only after root cause is known.
-   - If security findings exist → block merge until `security-auditor` returns no Critical/High issues.
-4. Require final output to include:
-   - Go/no-go verdict.
-   - Findings by agent.
-   - Commands run and exact evidence.
-   - Edge cases considered.
-   - Whether memory files were updated.
-
-### P1 — Add `.claude/settings.json` for enforceable project policy
-
-**Finding:** The repository currently relies heavily on prose instructions in `CLAUDE.md`, agents, skills, and commands. There is no project settings file visible in the audited inventory.
-
-**Why it matters:** Claude Code settings are the official path for permissions, hooks, environment variables, and tool behavior. Doctrine-critical behaviors should be automated where possible.
-
-**Action plan:**
-
-Create `.claude/settings.json` in a follow-up PR with conservative controls such as:
-
-```json
-{
-  "permissions": {
-    "deny": [
-      "Bash(rm -rf *)",
-      "Bash(git push --force*)",
-      "Bash(cat .env*)",
-      "Read(.env*)"
-    ]
-  },
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python - <<'PY'\nfrom pathlib import Path\nimport yaml\nfor p in sorted(Path('.claude').rglob('*.md')):\n    t=p.read_text(errors='replace')\n    if t.startswith('---'):\n        yaml.safe_load(t.split('---',2)[1])\nPY"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-Tune the exact permission syntax after verifying with `/permissions` and `/doctor`.
-
-### P1 — Add subagent lifecycle hooks for auditability
-
-**Finding:** Claude Code supports `SubagentStart` and `SubagentStop` hooks. DegenExus has a strong audit culture, but there is no visible hook-based subagent activity log.
-
-**Why it matters:** Agent fan-out is only trustworthy if the parent can later reconstruct which specialist ran, on what scope, and when.
-
-**Action plan:**
-
-1. Add a script such as `.claude/hooks/log-subagent-event.py` in a future PR.
-2. Configure `SubagentStart` and `SubagentStop` hooks in `.claude/settings.json`.
-3. Write append-only JSONL entries to a gitignored local path such as `.claude/local/subagent-events.jsonl`.
-4. Include fields: timestamp, event, agent type, cwd, git SHA, changed files, and invocation scope.
-
-### P1 — Reduce `CLAUDE.md` context load and move playbooks to skills
-
-**Finding:** `CLAUDE.md` is comprehensive, but it includes long operational doctrine, known debt, command tables, architecture descriptions, and process law. Claude Code guidance indicates adherence drops when instruction files become vague, conflicting, or too long; debugging docs recommend `/context` and `/memory` to verify what actually loaded.
-
-**Why it matters:** `CLAUDE.md` is always loaded. Long always-loaded content competes with task-specific content and increases the chance that critical rules are ignored.
-
-**Action plan:**
-
-1. Keep `CLAUDE.md` to durable, always-relevant items:
-   - Project identity.
-   - Top-level source-of-truth doctrine.
-   - Mandatory safety/security invariants.
-   - Commands.
-   - Agent delegation policy.
-2. Move long workflows into skills:
-   - FSV details → `fsv-verify` skill.
-   - FDD details → `forensic-debug` skill.
-   - Security threat model → `security-audit` skill or `.claude/rules/01-security.md`.
-   - Testing protocol → `test-engineering` skill.
-3. Add a short “When to use specialists” section:
-   - For code review, always use `code-reviewer` read-only.
-   - For persistent failures, use `fdd-investigator` before edits.
-   - For dependency/auth/prompt-safety questions, use `security-auditor`.
-   - For tests, use `test-engineer` with `edge-case-audit` and `fsv-verify`.
-
-### P2 — Add a `.claude/README.md` map
-
-**Finding:** The `.claude` tree has agents, skills, rules, imports, commands, output styles, and memory, but no local map explaining how they fit together.
-
-**Why it matters:** A short map helps human maintainers understand the intended synergy without reading every file.
-
-**Action plan:**
-
-Create `.claude/README.md` with:
-
-- Directory purpose table.
-- Agent matrix: name, write permission, default use, preloaded skills.
-- Skill matrix: trigger, owner agent, maturity status.
-- Command matrix: user-facing command, spawned agents, required evidence.
-- Validation checklist: `/context`, `/agents`, `/skills`, `/hooks`, `/permissions`, `/doctor`.
-
-### P2 — Introduce DegenExus-specific specialist agents
-
-The current agents are mostly generic engineering roles. DegenExus would benefit from specialists that mirror its real risk profile.
-
-#### 1. `risk-gate-verifier`
-
-**Purpose:** Read-only verification of `RiskGate`, `ExecutionGate`, `RiskDecision`, trade-level ordering, exposure limits, stale decisions, and bypass paths.
-
-**Suggested frontmatter:**
-
-```yaml
----
-name: risk-gate-verifier
-description: >
-  Read-only DegenExus risk-control auditor. Use proactively for changes touching
-  risk gates, execution gates, trade proposals, portfolio exposure, position
-  sizing, stop-loss/take-profit logic, or stale RiskDecision handling.
-tools: [Read, Grep, Glob, Bash]
-disallowedTools: [Write, Edit, MultiEdit, Agent]
-model: sonnet
-effort: high
-permissionMode: dontAsk
-skills: [edge-case-audit, fsv-verify]
-memory: project
----
-```
-
-**Core checks:**
-
-- No path from proposal to execution skips hard gate validation.
-- `RiskDecision.expires_at` is enforced.
-- LONG/SHORT stop-loss and take-profit ordering remains correct.
-- Total exposure and max open positions cannot be bypassed.
-- Tests include boundary values for every risk limit.
-
-#### 2. `prompt-injection-auditor`
-
-**Purpose:** Read-only review of prompt construction and cross-agent text flow.
-
-**Suggested checks:**
-
-- Every prior-agent reasoning field injected into a prompt is sanitized.
-- Market data strings and LLM outputs are treated as untrusted.
-- New prompt templates do not weaken system instructions.
-- Prompt-injection patterns have regression tests.
-
-#### 3. `trade-lifecycle-auditor`
-
-**Purpose:** Verify state-machine transitions, partial take-profit behavior, and SQLite audit state.
-
-**Suggested checks:**
-
-- Terminal states cannot transition.
-- Partial close dedup survives restart.
-- `upsert_trade` updates all intended mutable fields.
-- DB rows, not return values, are used as SoT evidence in tests.
-
-#### 4. `market-data-integrity-auditor`
-
-**Purpose:** Audit yfinance/indicator ingestion boundaries.
-
-**Suggested checks:**
-
-- OHLCV validation happens at Pydantic boundaries.
-- Missing/NaN/zero-volume bars are handled deterministically.
-- Indicator warmup periods are explicit.
-- Network failures degrade through deterministic fallback paths.
-
-#### 5. `docs-memory-curator`
-
-**Purpose:** Keep `CLAUDE.md`, `AGENTS.md`, `memory/`, issue references, and PR templates in sync.
-
-**Suggested checks:**
-
-- No closed issues remain listed as active debt.
-- `CLAUDE.md` and `AGENTS.md` agree on Python version and commands.
-- Memory updates are append-only, dated, and scoped.
-- PR body requirements are satisfied.
-
-### P2 — Introduce synergy-oriented skills
-
-#### 1. `claude-config-audit`
-
-A skill that audits `.claude/**` itself.
-
-**Workflow:**
-
-1. Parse all Markdown frontmatter.
-2. List all agents and skills.
-3. Cross-check every `skills:` reference against `.claude/skills/*/SKILL.md`.
-4. Cross-check slash-command references to local skills/agents/plugins.
-5. Report invalid YAML, missing references, duplicate names, and broad permissions.
-
-#### 2. `risk-control-audit`
-
-A reusable workflow for `risk-gate-verifier`, `code-reviewer`, and `/ship`.
-
-**Workflow:** enumerate risk invariants, map them to source files/tests, verify SoT evidence, and produce a PASS/BLOCK verdict.
-
-#### 3. `prompt-safety-review`
-
-A reusable workflow for `security-auditor` and `prompt-injection-auditor`.
-
-**Workflow:** trace untrusted text sources, verify sanitization before prompt injection, and recommend regression tests.
-
-#### 4. `sqlite-sot-verify`
-
-A reusable workflow for DB-backed FSV.
-
-**Workflow:** capture pre-state rows, perform operation, read rows directly, compute expected delta, and reject ORM/self-report-only proof.
-
-#### 5. `release-evidence-pack`
-
-A workflow for producing PR evidence.
-
-**Workflow:** collect test output, coverage, lint, compile, security audit, edge cases, changed files, memory updates, and PR-template sections.
-
-### P2 — Make agent memory useful or remove it
-
-**Finding:** `.claude/agent-memory/*/memory.md` files exist but are mostly empty. They are a good concept, but empty memory adds maintenance surface without improving behavior.
-
-**Action plan:**
-
-1. Add a “memory write criteria” section to each agent:
-   - Write only recurring patterns, false positives, and stable project facts.
-   - Do not write one-off task details.
-   - Include date and source evidence.
-2. Rename `security-reviewer` memory to match `security-auditor`, or explicitly document that it is historical.
-3. Add `project` memory to any agents intended to learn across this repo.
-
-### P3 — Normalize naming and descriptions
-
-**Finding:** Names and descriptions mix generic skill names, local agent names, plugin-like `agent-skills:*` names, and stale issue-specific text.
-
-**Action plan:**
-
-1. Use one vocabulary:
-   - Agents: noun roles (`code-reviewer`, `security-auditor`, `test-engineer`).
-   - Skills: workflow verbs/nouns (`fsv-verify`, `edge-case-audit`, `risk-control-audit`).
-   - Commands: user actions (`/review`, `/ship`, `/test`).
-2. Add “Use proactively” phrasing to descriptions where automatic delegation is desired.
-3. Remove stale issue numbers from agent descriptions; keep issue-specific work in memory or task files.
-
-## Proposed Target Architecture
-
 ```text
-CLAUDE.md
-  ├─ Always-loaded doctrine and delegation policy
-  ├─ Points to .claude/rules/01-security.md for security specifics
-  └─ Points to skills for long workflows
-
-.claude/settings.json
-  ├─ Permission deny rules for secrets/destructive commands
-  ├─ Hooks for frontmatter validation and subagent audit events
-  └─ Optional env defaults for Claude Code behavior
-
-.claude/agents/
-  ├─ ship                  # orchestrator; spawns only approved specialists
-  ├─ code-reviewer          # read-only quality review
-  ├─ security-auditor       # read-only security review
-  ├─ test-engineer          # write-capable test authoring
-  ├─ fdd-investigator       # read-only root-cause analysis
-  ├─ risk-gate-verifier     # read-only risk-control specialist
-  ├─ prompt-injection-auditor
-  ├─ trade-lifecycle-auditor
-  ├─ market-data-integrity-auditor
-  └─ docs-memory-curator
-
-.claude/skills/
-  ├─ claude-config-audit/
-  ├─ code-reviewer/
-  ├─ edge-case-audit/
-  ├─ forensic-debug/
-  ├─ fsv-verify/
-  ├─ prompt-safety-review/
-  ├─ risk-control-audit/
-  ├─ release-evidence-pack/
-  └─ sqlite-sot-verify/
-
-.claude/commands/
-  ├─ review.md   # invokes code-reviewer + relevant skills
-  ├─ test.md     # invokes test-engineer workflow
-  ├─ ship.md     # invokes ship orchestrator
-  ├─ audit.md    # invokes claude-config-audit and repo checks
-  └─ plan.md     # read-only planning, no unexpected file writes
+.claude/agent-memory/
+  code-reviewer/MEMORY.md
+  docs-memory-curator/MEMORY.md
+  fdd-investigator/MEMORY.md
+  market-data-integrity-auditor/MEMORY.md
+  prompt-injection-auditor/MEMORY.md
+  risk-gate-verifier/MEMORY.md
+  security-auditor/MEMORY.md
+  ship/MEMORY.md
+  test-engineer/MEMORY.md
+  trade-lifecycle-auditor/MEMORY.md
 ```
 
-## Implementation Roadmap
+Do **not** create memory for `test-writer` unless it remains a meaningful compatibility agent; otherwise remove or archive the deprecated memory directory after confirming no workflows depend on it.
 
-### Phase 1 — Make the current setup load reliably
+**Action plan:**
 
-1. Fix invalid YAML frontmatter in `code-reviewer` and `forensic-debug` skills.
-2. Remove or convert `.claude/skills/test`.
-3. Add a `claude-config-audit` skill or script-based validation command.
-4. Run `/skills`, `/agents`, and `/doctor` in Claude Code and record results.
+1. Rename existing lowercase memory files to uppercase `MEMORY.md`.
+2. Add minimal `MEMORY.md` files for every agent with `memory: project`.
+3. Keep each memory file under the documented load limit by making it a curated summary, not a log.
+4. Add validator checks:
+   - Every agent with `memory: project` must have `.claude/agent-memory/<name>/MEMORY.md`.
+   - Lowercase `.claude/agent-memory/**/memory.md` should fail validation.
+   - Memory directories for missing or deprecated agents should warn.
+5. Add a `Memory Write Criteria` section to every memory file: recurring pattern only, dated source evidence, no secrets, no one-off task notes.
 
-**Exit criteria:** all local skills appear in `/skills`; all agents appear in `/agents`; `/doctor` has no schema errors.
+**Acceptance checks:**
 
-### Phase 2 — Eliminate broken references and role overlap
+```bash
+python .claude/hooks/validate-claude-config.py
+find .claude/agent-memory -maxdepth 2 -type f | sort
+```
 
-1. Resolve missing `security-auditor` skill references.
-2. Rewrite commands away from missing `agent-skills:*` references or document plugin requirements.
-3. Merge `test-writer` into `test-engineer` or deprecate one role.
-4. Update `/ship` to use the final agent set.
+### P0 — Expand config validation beyond YAML parsing
 
-**Exit criteria:** every `skills:` entry maps to an existing local/plugin skill; every slash command references available agents/skills only.
+**Finding:** `.claude/hooks/validate-claude-config.py` confirms frontmatter parses, skills exist, and stale command references are absent. It does not yet validate many semantics that now matter: project memory naming, whether `tools` includes subagent-unavailable entries, whether hook matchers are valid for each event, whether skill frontmatter uses current hyphenated keys, or whether `permissionMode: bypassPermissions` appears.
 
-### Phase 3 — Add enforcement
+**Why it matters:** Claude Code internals can be syntactically valid while semantically inert. The validator should be the one trusted Source of Truth for the setup because `CLAUDE.md` explicitly points to it for Claude setup validation.
 
-1. Add `.claude/settings.json` with conservative permissions.
-2. Add hooks for frontmatter validation after `.claude/**` edits.
-3. Add subagent lifecycle logging.
-4. Add `/audit` command for Claude setup verification.
+**Action plan:**
 
-**Exit criteria:** a bad skill frontmatter edit is caught immediately; subagent runs leave auditable local evidence.
+Add validator rules for:
 
-### Phase 4 — Add DegenExus-specific specialists
+1. **Agent memory:** enforce `MEMORY.md` for `memory: project`; forbid lowercase `memory.md`.
+2. **Agent tool semantics:** flag `Agent` in subagents that are not intended to run as main session agents; the docs say subagents cannot spawn subagents, and `Agent(...)` only matters when an agent runs as the main thread.
+3. **Permission modes:** fail on `bypassPermissions`; warn on `acceptEdits` outside known write-capable agents.
+4. **Hook event schema:** maintain an allowed event list and warn when a matcher is supplied to events where matchers are ignored, or omitted where the local policy expects one.
+5. **Skill frontmatter:** accept and lint current fields such as `disable-model-invocation`, `allowed-tools`, `disallowed-tools`, `model`, `effort`, `context`, `when_to_use`, and `argument-hint`.
+6. **Skill/task duplication:** warn when a command and a skill share a name, since docs say skills take precedence over `.claude/commands/` for the same slash name.
+7. **README drift:** ensure every agent, skill, hook, and command is listed in `.claude/README.md`.
 
-1. Add `risk-gate-verifier`.
-2. Add `prompt-injection-auditor`.
-3. Add `trade-lifecycle-auditor`.
-4. Add `market-data-integrity-auditor`.
-5. Add `docs-memory-curator`.
+**Acceptance checks:**
 
-**Exit criteria:** `/ship` can fan out to generic quality, security, tests, and domain-risk specialists.
+```bash
+python .claude/hooks/validate-claude-config.py
+python -m pytest tests/ -q -k claude_config  # if/after validator tests are added
+```
 
-### Phase 5 — Slim and stratify context
+### P1 — Move reusable agent doctrine into shared skills and references
 
-1. Shorten `CLAUDE.md` to high-salience rules.
-2. Move long protocols into skills.
-3. Add `.claude/README.md` as an internals map.
-4. Verify context load with `/context`.
+**Finding:** Several agents contain long reusable workflows directly in their agent prompt files. The largest examples are `security-auditor` at 231 lines, `fdd-investigator` at 152 lines, `code-reviewer` at 130 lines, and `test-engineer` at 125 lines. Claude Code documentation emphasizes context-cost control: project instructions are always loaded, skills load descriptions first and full content only when used, and subagents get isolated context with specified skills.
 
-**Exit criteria:** `CLAUDE.md` is shorter, clearer, and delegates long workflows to discoverable skills.
+**Why it matters:** Long specialist prompts make each spawned agent expensive and can cause divergence when two agents need the same doctrine. Shared skills are a better home for repeatable procedure, while the agent prompt should focus on role, tools, scope, output contract, and when to update memory.
 
-## Concrete Backlog
+**Recommended target state:**
 
-| Priority | Item | Files to change in future PR | Acceptance criteria |
+- Keep agent files under roughly 60-90 lines where possible.
+- Move detailed checklists into skill `references/` files.
+- Preload only the skills a specialist truly needs.
+
+**Concrete refactor map:**
+
+| Current prompt content | Better home | Consuming agents |
+| --- | --- | --- |
+| OWASP/category security checklist | `.claude/skills/security-review/references/checklist.md` or expand `prompt-safety-review` plus new `dependency-audit` skill | `security-auditor`, `ship` |
+| 5-Whys and multi-hypothesis investigation procedure | `.claude/skills/forensic-debug/references/fdd-protocol.md` | `fdd-investigator` |
+| Five-axis code-review rubric | `.claude/skills/code-reviewer/references/review-template.md` plus concise SKILL body | `code-reviewer`, `ship` |
+| Prove-It and FSV-AAA test writing rules | `.claude/skills/test-regression/SKILL.md` or extend `edge-case-audit`/`fsv-verify` references | `test-engineer`, `ship` |
+| Release evidence formatting | `.claude/skills/release-evidence-pack/SKILL.md` | `ship`, `docs-memory-curator` |
+
+**Action plan:**
+
+1. Extract large checklists into `references/` files under the relevant skill directories.
+2. Replace the agent body with a concise role contract and references to preloaded skills.
+3. Add `when_to_use` to skills where a description alone is too broad.
+4. Re-run config validation and manually inspect `/agents` and `/skills` in Claude Code.
+
+### P1 — Add explicit agent-skill synergy contracts
+
+**Finding:** Agents preload skills, but there is no single source mapping risk surface → owning agent → required skills → required evidence. The policy is spread across `CLAUDE.md`, `.claude/README.md`, command prompts, agent frontmatter, and skill text.
+
+**Why it matters:** The most valuable part of this setup is specialist synergy. Without a single handoff matrix, `/ship` and `/review` can under-spawn specialists or receive incompatible outputs.
+
+**Action plan:**
+
+Create one of these lightweight coordination files:
+
+- `.claude/rules/02-agent-synergy.md`, or
+- `.claude/imports/agent-synergy-map.md`, or
+- `.claude/skills/release-evidence-pack/references/synergy-matrix.md`.
+
+Suggested matrix:
+
+| Trigger | Primary agent | Supporting skill(s) | Required evidence |
 | --- | --- | --- | --- |
-| P0 | Repair invalid skill YAML | `.claude/skills/code-reviewer/SKILL.md`, `.claude/skills/forensic-debug/SKILL.md` | YAML parse succeeds for all frontmatter; skills visible in `/skills`. |
-| P0 | Remove missing skill refs | `.claude/agents/security-auditor.md`, `.claude/commands/*.md` | No `skills:` entry or command invocation points to a nonexistent local/plugin skill. |
-| P1 | Consolidate test agents | `.claude/agents/test-engineer.md`, `.claude/agents/test-writer.md`, `.claude/commands/test.md`, `.claude/commands/ship.md` | One authoritative write-capable test role remains. |
-| P1 | Add project settings | `.claude/settings.json` | `/permissions` and `/hooks` show expected policy; `/doctor` clean. |
-| P1 | Add subagent audit hooks | `.claude/settings.json`, `.claude/hooks/*` | `SubagentStart` and `SubagentStop` create local audit records. |
-| P2 | Add config audit skill | `.claude/skills/claude-config-audit/SKILL.md` | Skill reports invalid YAML, duplicate agent names, missing skills, and broad permissions. |
-| P2 | Add risk specialist | `.claude/agents/risk-gate-verifier.md`, `.claude/skills/risk-control-audit/SKILL.md` | Risk-related changes trigger read-only risk gate review. |
-| P2 | Add prompt safety specialist | `.claude/agents/prompt-injection-auditor.md`, `.claude/skills/prompt-safety-review/SKILL.md` | Prompt changes trigger sanitization-path review. |
-| P2 | Add lifecycle specialist | `.claude/agents/trade-lifecycle-auditor.md`, `.claude/skills/sqlite-sot-verify/SKILL.md` | DB/trade-state changes get direct SoT verification. |
-| P2 | Add internals map | `.claude/README.md` | Maintainers can identify each agent/skill/command purpose from one file. |
-| P3 | Slim `CLAUDE.md` | `CLAUDE.md`, `.claude/imports/*`, `.claude/skills/*` | Always-loaded context contains only durable high-salience rules. |
+| `.claude/**`, `CLAUDE.md`, `AGENTS.md` | `docs-memory-curator` | `claude-config-audit`, `release-evidence-pack` | Config validation output, stale reference scan, memory impact |
+| Prompt construction, LLM context, cross-agent summaries | `prompt-injection-auditor` | `prompt-safety-review`, `edge-case-audit` | Trust boundary trace, sanitizer evidence, regression coverage |
+| Risk gate, execution gate, portfolio exposure | `risk-gate-verifier` | `risk-control-audit`, `fsv-verify`, `edge-case-audit` | PRE/POST source-of-truth reads, rejected bypass paths |
+| Trade lifecycle or SQLite state | `trade-lifecycle-auditor` | `sqlite-sot-verify`, `fsv-verify` | Direct SQLite row deltas, restart durability impact |
+| Market data, indicators, fallback feeds | `market-data-integrity-auditor` | `edge-case-audit`, `fsv-verify` | NaN/warmup/network degradation cases |
+| Bug persists after first fix | `fdd-investigator` | `forensic-debug`, `fsv-verify` | Hypotheses, falsification evidence, root cause |
+| Merge readiness | `ship` | `release-evidence-pack`, `claude-config-audit` | GO/NO-GO, command evidence, specialist summary |
 
-## Validation Commands for Future PRs
+Then update `/review`, `/audit`, and `/ship` to reference the same matrix rather than each maintaining separate specialist selection logic.
 
-Use these checks after making any `.claude/**` changes:
+### P1 — Reclassify task workflows as manual-only skills where appropriate
 
-```bash
-python - <<'PY'
-from pathlib import Path
-import yaml
-for path in sorted(Path('.claude').rglob('*.md')):
-    text = path.read_text(errors='replace')
-    if text.startswith('---'):
-        yaml.safe_load(text.split('---', 2)[1])
-print('frontmatter ok')
-PY
-```
+**Finding:** Claude Code supports `disable-model-invocation: true` for skills that should not be automatically loaded by the model. The local skills currently appear model-invocable by default. Some are reusable doctrine (`fsv-verify`, `edge-case-audit`) and should stay model-invocable; others are explicit workflows that may be better as manual commands.
 
-```bash
-python - <<'PY'
-from pathlib import Path
-import yaml
-skills = {p.parent.name for p in Path('.claude/skills').glob('*/SKILL.md')}
-missing = []
-for agent in sorted(Path('.claude/agents').glob('*.md')):
-    text = agent.read_text(errors='replace')
-    if not text.startswith('---'):
-        continue
-    fm = yaml.safe_load(text.split('---', 2)[1]) or {}
-    for skill in fm.get('skills', []) or []:
-        if skill not in skills:
-            missing.append((str(agent), skill))
-if missing:
-    for agent, skill in missing:
-        print(f'missing skill: {agent} -> {skill}')
-    raise SystemExit(1)
-print('agent skill references ok')
-PY
-```
+**Why it matters:** Model-invocable skills add descriptions to the session and can be selected automatically. For expensive, release-gate, or audit workflows, manual invocation can reduce noise and prevent accidental activation.
 
-Also run inside Claude Code after changes:
+**Recommended classification:**
 
-```text
-/context
-/memory
-/agents
-/skills
-/hooks
-/permissions
-/doctor
-/status
-```
+| Skill | Suggested invocation mode | Rationale |
+| --- | --- | --- |
+| `fsv-verify` | Model-invocable | Core doctrine for mutations and source-of-truth proof. |
+| `edge-case-audit` | Model-invocable | Broadly useful during design, tests, and reviews. |
+| `prompt-safety-review` | Model-invocable | Should trigger automatically on prompt/context work. |
+| `risk-control-audit` | Model-invocable | Should trigger automatically on risk/execution work. |
+| `sqlite-sot-verify` | Model-invocable | Should trigger automatically on persistence work. |
+| `claude-config-audit` | Consider manual-only or agent-preloaded only | Mostly needed for `.claude/**`; `docs-memory-curator` and `/audit` can preload it. |
+| `release-evidence-pack` | Manual-only or `/ship`-only | It is a gate workflow, not background knowledge. |
+| `forensic-debug` | Model-invocable but with tighter description | Useful on persistent failures; avoid over-triggering on simple bugs. |
+| `code-reviewer` | Model-invocable or bundled `/code-review` aware | Keep if it improves project-specific review; avoid conflicting with bundled `/code-review`. |
 
-## Final Recommendation
+**Action plan:**
 
-Treat the Claude setup as a first-class subsystem with its own tests. The repo already has a sophisticated doctrine and several useful specialist definitions, but it will become much more reliable after the discovery layer is fixed, stale references are removed, write-capable roles are consolidated, and hooks/settings enforce what prose currently asks agents to remember.
+1. Add `disable-model-invocation: true` to release-only skills if they should not auto-trigger.
+2. Add `when_to_use` to skills that should auto-trigger narrowly.
+3. Add validator output listing all model-invocable skills and their description lengths.
+4. Verify `/skills` in Claude Code after changes.
 
-The highest-return next PR should be narrowly scoped: **repair skill YAML, remove missing skill references, add a Claude-config audit skill/check, and update `/ship` to report config health before doing code review.** After that, add DegenExus-specific risk and prompt-safety specialists so the agent system reflects the actual hazards of a multi-agent trading simulator rather than only generic software-engineering roles.
+### P1 — Add a project run/verify skill for DegenExus
+
+**Finding:** Claude Code now documents bundled `/run`, `/verify`, and `/run-skill-generator` workflows that can record project-specific launch recipes under `.claude/skills/run-<name>/`. DegenExus has command knowledge in `CLAUDE.md`, but no project run/verify skill.
+
+**Why it matters:** This is a CLI/TUI simulator with a known headless launch command. A project-specific run recipe would reduce rediscovery and make `/verify` more useful after behavioral changes.
+
+**Action plan:**
+
+Create `.claude/skills/run-degenexus/SKILL.md` with a concise recipe:
+
+1. Environment creation and dependency install assumptions.
+2. Headless smoke command: `python src/main.py --cycles 1 --no-dashboard --symbols AAPL,SPY`.
+3. Agent list command: `python src/main.py --list-agents`.
+4. Core checks: `python3 -m compileall -q src/`, targeted pytest, full pytest.
+5. Network/yfinance caveat and expected fallback behavior.
+6. No real trading guarantee.
+
+If using `/run-skill-generator`, run it once and then curate the generated skill before committing.
+
+### P2 — Tighten hook coverage and hook auditability
+
+**Finding:** The existing hooks are useful but narrow. `PostToolUse` validates config only after write/edit tools; `SubagentStart` and `SubagentStop` log events. Current Claude Code hook docs also support `ConfigChange`, `SessionStart`, `Stop`, `TaskCompleted`, `FileChanged`, prompt hooks, and agent hooks.
+
+**Why it matters:** The current setup can miss drift that happens outside ordinary edits or when config changes are reloaded during a session.
+
+**Action plan:**
+
+1. Add a `ConfigChange` hook that runs `python .claude/hooks/validate-claude-config.py` for `project_settings` and `skills` changes.
+2. Add a `SessionStart` hook that prints a short reminder to run or trust the mandatory turn-start ritual if the session was started in this repo.
+3. Add a `FileChanged` hook for `.envrc|.env` that warns rather than reads secret content.
+4. Consider a `Stop` prompt hook for `/ship` sessions only, asking whether required verification evidence is present before allowing completion.
+5. Keep agent hooks experimental; prefer command hooks for production policy because the docs note agent hooks may change.
+6. Ensure `.claude/local/` is gitignored if subagent lifecycle logs are written there.
+
+### P2 — Clarify `ship` as main-session orchestrator vs spawned subagent
+
+**Finding:** The `ship` agent has `tools: Agent(...)`, which is valid for restricting subagents when the agent runs as the main thread. Claude Code docs state subagents themselves cannot spawn other subagents, so this tool list has no effect if `ship` is spawned as a normal subagent by another conversation.
+
+**Why it matters:** The repository describes `ship` as a fan-out orchestrator. That behavior depends on invoking it in a mode where the `Agent` tool is actually available.
+
+**Action plan:**
+
+1. In `.claude/commands/ship.md`, explicitly state whether `/ship` should launch `ship` as the main session agent or instruct the current session to perform fan-out.
+2. In `.claude/README.md`, document the invocation model:
+   - `claude --agent ship` for full orchestrator behavior, or
+   - `/ship` as a prompt-level command where the parent agent performs fan-out.
+3. Add a validator warning when an agent has `Agent(...)` tools but no documentation explaining it is intended to run as the main thread.
+4. Consider renaming `ship` to `ship-coordinator` if it is intended primarily as a main-session agent.
+
+### P2 — Add a dedicated dependency/security audit skill
+
+**Finding:** `security-auditor` mentions CVE and dependency review, but it disallows `Bash`, so it cannot run `pip-audit`. The command table in `CLAUDE.md` includes `pip-audit -r requirements.txt`, but no skill owns dependency audit evidence collection.
+
+**Why it matters:** Security review currently has a split brain: the security agent can reason from manifests, but the parent must remember to run dependency tooling. A small skill would standardize the handoff.
+
+**Action plan:**
+
+Create `.claude/skills/dependency-audit/SKILL.md` with:
+
+- Manual invocation default (`disable-model-invocation: true`) unless security work should trigger it automatically.
+- Commands:
+  - `pip-audit -r requirements.txt`
+  - Optional `python -m pip list --outdated` if dependency freshness matters.
+- Output contract:
+  - Tool version, command output, Critical/High vulnerabilities, package owner, remediation note.
+- Parent-agent handoff:
+  - `security-auditor` requests this evidence when it lacks shell access.
+  - `/ship` includes the evidence when dependencies changed.
+
+### P2 — Add a prompt-flow inventory for prompt-injection audits
+
+**Finding:** There is a `prompt-injection-auditor` and `prompt-safety-review` skill, but no durable map of prompt construction paths, untrusted inputs, and sanitizers.
+
+**Why it matters:** Prompt-injection safety is a recurring system property. A durable inventory lets the prompt specialist spend time verifying deltas instead of rediscovering data flow every review.
+
+**Action plan:**
+
+Add a reference document such as `.claude/skills/prompt-safety-review/references/prompt-flow-inventory.md` with:
+
+- Prompt construction files/functions.
+- Untrusted inputs: market data text, analyst output, logs, memory, prior-agent reasoning, CLI args, DB text.
+- Sanitizers and boundaries.
+- Tests that cover prompt-injection scenarios.
+- Known false positives and unresolved gaps.
+
+Then preload this skill for `prompt-injection-auditor` and cite the inventory from `.claude/README.md`.
+
+### P2 — Add outcome-oriented slash command outputs
+
+**Finding:** Slash commands are concise, but several do not require the final answer to include exact evidence, owner, and next step. `/ship` is strong; `/audit`, `/review`, `/test`, and `/plan` can borrow its output discipline.
+
+**Why it matters:** Consistent output contracts make subagent results easier to combine. This is especially important when multiple specialists participate.
+
+**Action plan:**
+
+Update commands to require final sections:
+
+- **Scope reviewed**
+- **Source of Truth used**
+- **Specialists/skills invoked**
+- **Evidence commands and exact results**
+- **Findings by severity**
+- **At least three edge cases considered**
+- **Memory update needed? yes/no + path**
+- **Next action owner**
+
+### P3 — Add tests for Claude internals validators and hooks
+
+**Finding:** The hook scripts are executable Python, but they appear to be validated only by compile checks and direct execution. There are no obvious unit tests dedicated to `.claude/hooks/validate-claude-config.py` or `.claude/hooks/log-subagent-event.py`.
+
+**Why it matters:** Once the validator becomes the Source of Truth for Claude internals, it needs regression tests. Otherwise future changes can silently weaken checks.
+
+**Action plan:**
+
+1. Add `tests/test_claude_config_validator.py` with temporary `.claude` fixtures or helper functions that accept a root path.
+2. Test invalid YAML frontmatter, missing skills, lowercase memory files, stale `agent-skills:*`, command/skill name collisions, and forbidden permission modes.
+3. Add `tests/test_subagent_event_logger.py` with a temporary log path and mocked git output.
+4. Keep hook scripts dependency-light so they work before the project environment is fully installed.
+
+### P3 — Document plugin and bundled-skill boundaries
+
+**Finding:** The setup previously had stale plugin-style references. The current setup removes them, but the README could be clearer about which capabilities are project-local versus bundled Claude Code behavior.
+
+**Why it matters:** Claude Code now includes bundled prompt-based skills such as `/code-review`, `/batch`, `/debug`, `/loop`, and `/claude-api`, and skills can override command names. Without a boundary document, future contributors may accidentally reintroduce plugin-only names or duplicate bundled skills.
+
+**Action plan:**
+
+Add a section to `.claude/README.md`:
+
+- **Project-local:** all files in `.claude/agents`, `.claude/skills`, `.claude/commands`, `.claude/hooks`, `.claude/settings.json`.
+- **Bundled Claude Code:** `/code-review`, `/batch`, `/debug`, `/loop`, `/claude-api`, `/run`, `/verify` when available.
+- **External/plugin:** any `plugin-name:skill-name` references must list plugin source, version, and verification command.
+- **Collision policy:** project skills should not reuse bundled names unless intentionally overriding behavior.
+
+## Suggested Implementation Order
+
+1. **Memory correctness PR:** rename/add `MEMORY.md` files and update validator checks.
+2. **Validator hardening PR:** add semantic checks and tests for hooks/config.
+3. **Synergy matrix PR:** add the agent-skill handoff matrix and point `/ship`, `/review`, `/audit`, and `CLAUDE.md` to it.
+4. **Prompt diet PR:** move large checklists from long agent prompts into skills/references.
+5. **Run/verify PR:** add `run-degenexus` and optional dependency-audit skill.
+6. **Hook expansion PR:** add `ConfigChange`, selected `SessionStart`, and `.env` warning hooks.
+
+## Definition of Done for the Next Claude Internals Pass
+
+A future pass should be considered complete when all of these are true:
+
+- `python .claude/hooks/validate-claude-config.py` passes and enforces memory naming, skill existence, hook schema, and high-risk permission rules.
+- Every `memory: project` agent has a curated `.claude/agent-memory/<agent>/MEMORY.md` file.
+- `/ship` documentation clearly states how the orchestrator can actually fan out to specialists.
+- Reusable checklists live in skills or skill references, not duplicated in long agent prompts.
+- Commands share a consistent evidence-first output contract.
+- Claude internals hook scripts have unit coverage or fixture-based tests.
+- `.claude/README.md` distinguishes project-local, bundled, and plugin-provided capabilities.
