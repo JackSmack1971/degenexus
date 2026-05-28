@@ -37,7 +37,7 @@ class DebateEvent:
 class TradingOrchestrator:
     """
     Runs the 8-phase debate cycle:
-    SCAN → CEO_TRIAGE → QUANT_DESIGN → RISK_EVALUATE → CEO_FINAL → EXECUTE → MONITOR → LEARN
+    SCAN → CEO_TRIAGE → QUANT_DESIGN → RISK_HARD_GATE → RISK_EVALUATE → CEO_FINAL → EXECUTE → MONITOR
     """
 
     MAX_CHALLENGE_ROUNDS = 2
