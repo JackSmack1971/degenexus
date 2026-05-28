@@ -3,7 +3,7 @@
 import json
 import sys
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from src.agents.base_agent import BaseAgent
 

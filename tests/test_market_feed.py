@@ -205,7 +205,6 @@ class TestFetchYfinance:
     def test_naive_timestamps_get_utc_tzinfo(self, mocker):
         """Lines 115-117: naive timestamps → UTC tzinfo applied."""
         import pandas as pd
-        from datetime import timezone as tz
 
         dates = pd.DatetimeIndex([pd.Timestamp("2024-01-02")])  # no timezone
         df = pd.DataFrame({
