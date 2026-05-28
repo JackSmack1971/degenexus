@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python .claude/hooks/validate-claude-config.py"
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/validate-claude-config.py\""
           }
         ]
       }
@@ -55,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python .claude/hooks/log-subagent-event.py"
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/log-subagent-event.py\""
           }
         ]
       }
@@ -66,7 +66,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python .claude/hooks/log-subagent-event.py"
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/log-subagent-event.py\""
           }
         ]
       }
@@ -77,7 +77,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python .claude/hooks/validate-claude-config.py"
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/validate-claude-config.py\""
           }
         ]
       }
@@ -87,7 +87,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python .claude/hooks/session-start-reminder.py"
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start-reminder.py\""
           }
         ]
       }
@@ -98,7 +98,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python .claude/hooks/warn-env-file-changed.py"
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/warn-env-file-changed.py\""
           }
         ]
       }
@@ -109,7 +109,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python .claude/hooks/protect-sensitive-files.py"
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect-sensitive-files.py\""
+          }
+        ]
+      }
+    ],
+    "InstructionsLoaded": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/log-instructions-loaded.py\""
+          }
+        ]
+      }
+    ],
+    "CwdChanged": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/cwd-changed-reminder.py\""
           }
         ]
       }

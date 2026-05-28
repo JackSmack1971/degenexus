@@ -29,6 +29,10 @@ def write_minimal_claude(root: Path) -> None:
         "  - sample-skill\n"
         "memory: project\n"
         "permissionMode: dontAsk\n"
+        "disallowedTools:\n"
+        "  - Write\n"
+        "  - Edit\n"
+        "  - MultiEdit\n"
         "---\nBody\n"
     )
     (claude / "skills" / "sample-skill" / "SKILL.md").write_text(
@@ -50,7 +54,7 @@ def write_minimal_claude(root: Path) -> None:
                             "hooks": [
                                 {
                                     "type": "command",
-                                    "command": "python .claude/hooks/validate-claude-config.py",
+                                    "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/validate-claude-config.py\"",
                                 }
                             ],
                         }
@@ -64,9 +68,22 @@ def write_minimal_claude(root: Path) -> None:
     )
 
 
+def sync_generated_inventory(root: Path, validator) -> None:
+    readme = root / ".claude" / "README.md"
+    content = readme.read_text()
+    inventory = validator.generate_inventory(root)
+    if validator.INVENTORY_START in content and validator.INVENTORY_END in content:
+        before = content.split(validator.INVENTORY_START, 1)[0]
+        after = content.split(validator.INVENTORY_END, 1)[1]
+        readme.write_text(before + inventory + after)
+    else:
+        readme.write_text(content + inventory + "\n")
+
+
 def test_validator_accepts_minimal_valid_project(tmp_path: Path) -> None:
     validator = load_validator()
     write_minimal_claude(tmp_path)
+    sync_generated_inventory(tmp_path, validator)
 
     errors, warnings = validator.validate(tmp_path)
 
@@ -77,6 +94,7 @@ def test_validator_accepts_minimal_valid_project(tmp_path: Path) -> None:
 def test_validator_rejects_lowercase_project_memory(tmp_path: Path) -> None:
     validator = load_validator()
     write_minimal_claude(tmp_path)
+    sync_generated_inventory(tmp_path, validator)
     memory_dir = tmp_path / ".claude" / "agent-memory" / "sample-agent"
     (memory_dir / "MEMORY.md").unlink()
     (memory_dir / "memory.md").write_text("# wrong case\n")
@@ -90,6 +108,7 @@ def test_validator_rejects_lowercase_project_memory(tmp_path: Path) -> None:
 def test_validator_flags_missing_skill_and_forbidden_permission(tmp_path: Path) -> None:
     validator = load_validator()
     write_minimal_claude(tmp_path)
+    sync_generated_inventory(tmp_path, validator)
     agent = tmp_path / ".claude" / "agents" / "sample-agent.md"
     agent.write_text(agent.read_text().replace("sample-skill", "missing-skill").replace("dontAsk", "bypassPermissions"))
 
@@ -107,6 +126,7 @@ def test_validator_warns_on_command_skill_collision_and_unknown_skill_field(tmp_
     skill.write_text(skill.read_text().replace("description: Sample skill.", "description: Sample skill.\nunknown-field: true"))
     readme = tmp_path / ".claude" / "README.md"
     readme.write_text(readme.read_text() + "sample-skill\n")
+    sync_generated_inventory(tmp_path, validator)
 
     errors, warnings = validator.validate(tmp_path)
 

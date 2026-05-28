@@ -18,3 +18,5 @@ venv/
 .coverage
 htmlcov/
 .claude/local/
+!.claude/skills/build/
+!.claude/skills/build/SKILL.md

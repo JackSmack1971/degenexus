@@ -1,15 +1,13 @@
 ---
-description: Simplify DegenExus code for clarity while preserving source-of-truth behavior
+description: Compatibility shim for the canonical DegenExus code-simplify workflow skill
 ---
 
-Use existing project tests, `code-reviewer`, and `fsv-verify` rather than plugin-only simplification skills.
+Use `.claude/skills/code-simplify/SKILL.md` as the canonical workflow.
 
-Workflow:
+Required references for this slash workflow:
 
-1. Identify the target code and source-of-truth behavior.
-2. Read callers, tests, edge cases, and relevant invariants before editing.
-3. Prefer deletion, guard clauses, extracted helpers, descriptive names, and removal of dead code after proof.
-4. Apply one simplification at a time.
-5. After each meaningful change, run targeted tests and compare behavior against source-of-truth expectations.
-6. Run `python3 -m compileall -q src/` for runtime changes.
-7. If behavior changes unexpectedly, revert that simplification and investigate.
+- `.claude/skills/code-simplify/SKILL.md`
+- `.claude/rules/synergy-contract.yml`
+- `.claude/rules/evidence-schema.yml`
+
+Do not duplicate workflow prose here; load the skill and emit schema-checkable simplification evidence.
