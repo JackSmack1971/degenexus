@@ -1,0 +1,96 @@
+{
+  "phase": "audit-only FDD+FSV",
+  "session_id": "claude/degenexus-audit-phase-LxvN7",
+  "date": "2026-05-28",
+  "repo": "JackSmack1971/degenexus",
+  "head_sha": "3446adf15830e8ab1acc7265225ea2c49a961050",
+  "branch": "claude/degenexus-audit-phase-LxvN7",
+
+  "commands_run": [
+    "git log --oneline -5",
+    "git branch --show-current",
+    "git status --short",
+    "git remote -v",
+    "python3 --version",
+    "pip install pytest pytest-asyncio pytest-mock pytest-cov anthropic openai pydantic pydantic-settings yfinance pandas numpy rich python-dotenv requests langchain langchain-anthropic",
+    "pip install setuptools==64.0.3 --no-deps && pip install ta",
+    "pip install ruff mypy radon pip-audit pyflakes",
+    "python3 -m pytest tests/ -q",
+    "python3 -m pytest tests/ --cov=src --cov-report=term-missing -q",
+    "python3 -m pyflakes src/",
+    "python3 -m mypy src/ --ignore-missing-imports",
+    "python3 -m mypy src/",
+    "python3 -m ruff check src/ tests/",
+    "python3 -m radon cc src/ -a",
+    "python3 -m radon cc src/ -a -s",
+    "python3 -m radon cc src/ -s -n C",
+    "pip-audit -r requirements.txt",
+    "grep -n 'os.environ' src/main.py",
+    "grep -rn 'os.getenv|os.environ' src/",
+    "grep -rn '_sanitize_external_text' src/agents/",
+    "grep -n 'LEARN|RISK_HARD_GATE|RISK_EVALUATE' src/orchestrator.py",
+    "grep -n 'requires-python' pyproject.toml",
+    "python3 -m pytest tests/test_indicators.py -v"
+  ],
+
+  "quality_gate_results": {
+    "tests": {"passed": 368, "failed": 0, "status": "PASS"},
+    "coverage_overall": {"pct": 96, "status": "PASS"},
+    "coverage_per_file": {
+      "base_agent.py": {"pct": 89, "threshold": 90, "status": "FAIL"},
+      "quant_agent.py": {"pct": 80, "threshold": 90, "status": "FAIL"},
+      "risk_manager.py": {"pct": 86, "threshold": 90, "status": "FAIL"},
+      "market_feed.py": {"pct": 87, "threshold": 90, "status": "FAIL"}
+    },
+    "pyflakes_src": {"findings": 0, "status": "PASS"},
+    "mypy_ignore_missing": {"errors": 0, "status": "PASS"},
+    "mypy_strict": {"errors": 7, "files": 3, "status": "FAIL"},
+    "ruff": {"findings": 27, "status": "FAIL"},
+    "radon_average": {"grade": "A", "value": 2.951, "status": "PASS"},
+    "radon_no_def": {"d_count": 0, "e_count": 0, "f_count": 0, "status": "PASS"},
+    "pip_audit": {"vulnerabilities": 0, "status": "PASS"}
+  },
+
+  "prior_issues_verified": [
+    {"number": 84, "title": "[TEST] 27 ruff lint violations in test suite", "confirmed": true},
+    {"number": 85, "title": "[TEST] 4 source files below 90% coverage threshold", "confirmed": true},
+    {"number": 86, "title": "[TYPE] mypy strict mode fails with 7 import-untyped errors", "confirmed": true},
+    {"number": 87, "title": "[SEC][ARCH] src/get-model-list.py reads API key via os.environ.get()", "confirmed": true},
+    {"number": 88, "title": "[ARCH] orchestrator.py docstring + ARCHITECTURE.md show stale 8-phase cycle", "confirmed": true},
+    {"number": 89, "title": "[CONFIG] pyproject.toml requires-python>=3.12 but runtime is Python 3.11.15", "confirmed": true}
+  ],
+
+  "anomalies_found": [
+    {
+      "id": "A7",
+      "type": "[ARCH]",
+      "file": "src/main.py",
+      "line": 142,
+      "description": "os.environ['STARTING_CAPITAL'] = str(args.capital) — env mutation workaround; Portfolio DI injection exists (orchestrator.py:50) but is unused in main.py",
+      "evidence": "main.py:142 + portfolio.py:34 + orchestrator.py:58",
+      "root_cause": "main.py written before DI fix (#51); never updated after DI became available",
+      "blast_radius": "global os.environ mutation; implicit capital config flow; DI injection intent obscured",
+      "fix": "TradingOrchestrator(watchlist=watchlist, portfolio=Portfolio(starting_capital=args.capital))",
+      "issue": 91
+    }
+  ],
+
+  "issues_created": [91],
+  "issues_updated": [],
+  "issues_closed": [],
+
+  "prs_created": [],
+  "code_files_changed": [],
+
+  "memory_files_updated": [
+    "memory/FAILURES.md",
+    "memory/PROGRESS.md",
+    "memory/agent_manifests/audit-20260528-session.json"
+  ],
+
+  "forbidden_actions_performed": false,
+  "remaining_unprocessed_failures": 0,
+
+  "completion_verdict": "pass",
+  "completion_notes": "All 6 prior open issues confirmed reproduced. 1 new anomaly found (A7) and mapped to issue #91. pip-audit clean. No D/E/F radon methods. All 368 tests pass. No code files changed, no PRs created, no issues closed."
+}
