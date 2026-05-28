@@ -1,5 +1,21 @@
 # PROGRESS
 
+## Session: 2026-05-28 (claude/degenexus-forensic-impl-eW5PT) — IMPLEMENTATION+PR PHASE IN PROGRESS
+
+### Session Baseline
+- Branch: `claude/degenexus-forensic-impl-eW5PT` (from main HEAD `e572bc6`)
+- Tests at start: 408 passed, 4 skipped (97% coverage; indicators.py 87%)
+- Eligible issues: #101, #102, #105, #106, #107, #109, #110 (7 total)
+- Open PRs at start: 0
+
+### Implementations In Progress
+
+| Issue | Priority | Fix | Branch | PR |
+|-------|----------|-----|--------|----|
+| #101 | p2 | Convert 4 skip guards to sys.modules injection; add MACD/EMA happy-path tests → indicators.py 100% | codex/issue-101 | pending |
+
+---
+
 ## Session: 2026-05-28 (claude/degenexus-forensic-impl-REfWC) — IMPLEMENTATION+PR PHASE IN PROGRESS
 
 ### Session Baseline
