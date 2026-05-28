@@ -1,0 +1,40 @@
+{
+  "issue": 104,
+  "branch": "codex/issue-104",
+  "base_head": "407e073",
+  "session": "claude/degenexus-forensic-impl-REfWC",
+  "date": "2026-05-28",
+  "root_cause": "check_partial_tp used fill_price + 1.5*risk_distance for both LONG and SHORT. For SHORT trades this level is above fill_price, so current_price <= partial_tp_level fires immediately at entry.",
+  "fix_summary": "Lines 123-130 of trade_lifecycle.py replaced with direction-aware conditional: LONG uses fill + 1.5*risk_distance (>= check), SHORT uses fill - 1.5*risk_distance (<= check).",
+  "files_changed": [
+    "src/core/trade_lifecycle.py",
+    "tests/test_trade_lifecycle.py",
+    "memory/PROGRESS.md",
+    "memory/agent_manifests/implement-issue-104-session.json"
+  ],
+  "pre_fsv": {
+    "trade_lifecycle_coverage": "unknown (pre-fix)",
+    "tests_passing": 389,
+    "skipped": 4,
+    "short_at_fill_fires": true
+  },
+  "post_fsv": {
+    "trade_lifecycle_coverage": "100%",
+    "total_coverage": "97%",
+    "tests_passing": 395,
+    "skipped": 4,
+    "ruff": "CLEAN",
+    "pyflakes": "CLEAN",
+    "short_at_fill_fires": false
+  },
+  "edge_cases": [
+    "SHORT at fill price → False (BVA: at-entry boundary — was True before fix)",
+    "SHORT at fill - 1.5*risk_distance → True (exact boundary trigger)",
+    "SHORT at fill - 1.5*risk_distance + 0.01 → False (one tick inside boundary)",
+    "SHORT at fill - 1.5*risk_distance - 0.01 → True (one tick past boundary)",
+    "PARTIALLY_CLOSED state → False (not OPEN, no partial TP check)",
+    "LONG unaffected: fill + 1.5*risk_distance still triggers correctly"
+  ],
+  "forbidden_actions_performed": false,
+  "completion_verdict": "pass"
+}

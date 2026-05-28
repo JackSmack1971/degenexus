@@ -222,6 +222,57 @@ class TestPartialTpZeroDistance:
         assert lc.check_partial_tp(t, current_price=107.49) is False
 
 
+class TestShortPartialTp:
+    """BVA tests for check_partial_tp with SHORT direction."""
+
+    def test_short_at_entry_price_returns_false(self):
+        """SHORT at fill price must not trigger partial TP (pre-fix: was True)."""
+        lc = TradeLifecycle()
+        # fill=100, stop=105 → risk_distance=5 → partial_tp_level=92.5
+        t = make_open_short_trade(fill_price=100.0, stop_loss=105.0, take_profit=80.0)
+        assert lc.check_partial_tp(t, current_price=100.0) is False
+
+    def test_short_partial_tp_exact_boundary_triggers(self):
+        """SHORT: current_price == fill - 1.5*risk_distance → True."""
+        lc = TradeLifecycle()
+        # fill=100, stop=105 → risk_distance=5 → partial_tp_level=92.5
+        t = make_open_short_trade(fill_price=100.0, stop_loss=105.0, take_profit=80.0)
+        assert lc.check_partial_tp(t, current_price=92.5) is True
+
+    def test_short_one_tick_above_boundary_returns_false(self):
+        """SHORT: current_price just above boundary (92.51) → False."""
+        lc = TradeLifecycle()
+        t = make_open_short_trade(fill_price=100.0, stop_loss=105.0, take_profit=80.0)
+        assert lc.check_partial_tp(t, current_price=92.51) is False
+
+    def test_short_one_tick_below_boundary_triggers(self):
+        """SHORT: current_price just below boundary (92.49) → True."""
+        lc = TradeLifecycle()
+        t = make_open_short_trade(fill_price=100.0, stop_loss=105.0, take_profit=80.0)
+        assert lc.check_partial_tp(t, current_price=92.49) is True
+
+    def test_short_partial_tp_not_open_state_returns_false(self):
+        """check_partial_tp returns False when trade is not OPEN."""
+        lc = TradeLifecycle()
+        t = make_open_short_trade(fill_price=100.0, stop_loss=105.0, take_profit=80.0)
+        t.state = TradeState.PARTIALLY_CLOSED
+        assert lc.check_partial_tp(t, current_price=90.0) is False
+
+    def test_long_partial_tp_unaffected_by_fix(self):
+        """LONG partial TP formula must be unchanged: fill + 1.5*risk triggers."""
+        lc = TradeLifecycle()
+        t = Trade(
+            proposal_id=str(uuid.uuid4()), signal_id=str(uuid.uuid4()),
+            symbol="AAPL", direction=Direction.LONG, state=TradeState.OPEN,
+            order_type=OrderType.LIMIT, fill_price=100.0, shares=10,
+            stop_loss=95.0, take_profit=115.0,
+        )
+        # partial_tp_level = 100 + 1.5*5 = 107.5
+        assert lc.check_partial_tp(t, current_price=107.5) is True
+        assert lc.check_partial_tp(t, current_price=107.49) is False
+        assert lc.check_partial_tp(t, current_price=100.0) is False
+
+
 class TestTpSlChecks:
     def test_detects_stop_loss_hit_long(self):
         lc = TradeLifecycle()

@@ -120,11 +120,9 @@ class TradeLifecycle:
         if risk_distance == 0:
             return False
 
-        partial_tp_level = trade.fill_price + 1.5 * risk_distance
-
-        if trade.direction == Direction.LONG and current_price >= partial_tp_level:
-            return True
-        if trade.direction == Direction.SHORT and current_price <= partial_tp_level:
-            return True
-
-        return False
+        if trade.direction == Direction.LONG:
+            partial_tp_level = trade.fill_price + 1.5 * risk_distance
+            return current_price >= partial_tp_level
+        else:  # SHORT: favorable move is downward
+            partial_tp_level = trade.fill_price - 1.5 * risk_distance
+            return current_price <= partial_tp_level
