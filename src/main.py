@@ -138,9 +138,6 @@ def main() -> None:
         list_agents()
         sys.exit(0)
 
-    # Override capital from args
-    os.environ["STARTING_CAPITAL"] = str(args.capital)
-
     watchlist = [s.strip().upper() for s in args.symbols.split(",") if s.strip()]
     if not watchlist:
         logger.error("No valid symbols in watchlist")
@@ -158,7 +155,11 @@ def main() -> None:
         )
 
     from src.orchestrator import TradingOrchestrator
-    orchestrator = TradingOrchestrator(watchlist=watchlist)
+    from src.core.portfolio import Portfolio
+    orchestrator = TradingOrchestrator(
+        watchlist=watchlist,
+        portfolio=Portfolio(starting_capital=args.capital),
+    )
 
     if args.no_dashboard:
         run_without_dashboard(orchestrator, args)
