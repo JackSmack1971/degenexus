@@ -1,5 +1,44 @@
 # PROGRESS
 
+## Session: 2026-05-28 (claude/degenexus-forensic-impl-eW5PT) — IMPLEMENTATION+PR PHASE COMPLETE
+
+### Session Baseline
+- Branch: `claude/degenexus-forensic-impl-eW5PT` (from main HEAD `e572bc6`)
+- Tests at start: 408 passed, 4 skipped (97% coverage; indicators.py 87%)
+- Eligible issues: #101, #102, #105, #106, #107, #109, #110 (7 total)
+- Open PRs at start: 0
+
+### Implementations and PRs
+
+| Issue | Priority | Fix | Branch | PR |
+|-------|----------|-----|--------|----|
+| #101 | p2 | Convert 4 skip guards to sys.modules injection; add MACD/EMA happy-path tests → indicators.py 100% | codex/issue-101 | [#122](https://github.com/JackSmack1971/degenexus/pull/122) |
+| #106 | p2 | Remove langchain + langchain-anthropic from requirements.txt | codex/issue-106 | [#123](https://github.com/JackSmack1971/degenexus/pull/123) |
+| #107 | p2 | Add ruff/mypy/pyflakes gates to CI workflow | codex/issue-107 | [#124](https://github.com/JackSmack1971/degenexus/pull/124) |
+| #105 | p2 | Raise --cov-fail-under from 50 to 90 (stacks on #101) | codex/issue-105 | [#125](https://github.com/JackSmack1971/degenexus/pull/125) |
+| #109 | p3 | Correct stale Python version, env var, dep names in README.md | codex/issue-109 | [#126](https://github.com/JackSmack1971/degenexus/pull/126) |
+| #110 | p3 | Add Python 3.11 to CI matrix alongside 3.12 | codex/issue-110 | [#127](https://github.com/JackSmack1971/degenexus/pull/127) |
+| #102 | p3 | Already resolved by PR #121 — evidence comment added | N/A | (comment only) |
+
+### FSV Summary
+
+| Issue | Pre | Post |
+|-------|-----|------|
+| #101 | indicators.py 87%, 408 passed | indicators.py 100%, **418 passed** |
+| #106 | langchain in requirements.txt | removed; grep 0 matches |
+| #107 | no lint/type-check in CI | ruff+mypy+pyflakes added; all CLEAN |
+| #105 | --cov-fail-under=50 | --cov-fail-under=90; 98% total ✅ |
+| #109 | 5 stale entries in README.md | 0 stale matches |
+| #110 | CI: 3.12 only | CI matrix: ["3.11", "3.12"] |
+
+### Manifest
+- `memory/agent_manifests/implementation-20260528-session.json` — follow_up_sessions entry appended
+
+### Completion Verdict
+PASS — all 6 eligible issues have open PRs; #102 has evidence-backed comment; all branches exist; all PRs have `Closes #N` refs; no PRs merged; no issues manually closed.
+
+---
+
 ## Session: 2026-05-28 (claude/degenexus-forensic-impl-REfWC) — IMPLEMENTATION+PR PHASE IN PROGRESS
 
 ### Session Baseline
