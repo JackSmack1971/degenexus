@@ -2,491 +2,343 @@
 
 **Date:** 2026-05-28
 **Scope:** `CLAUDE.md`, `.claude/README.md`, `.claude/settings.json`, `.claude/agents/`, `.claude/skills/`, `.claude/commands/`, `.claude/rules/`, `.claude/imports/`, `.claude/output-styles/`, `.claude/hooks/`, and `.claude/agent-memory/`.
-**Deliverable constraint:** Recommendations only. This refresh intentionally modifies no Claude Code internals other than replacing this audit file.
+**Deliverable constraint:** Recommendations only. This refresh intentionally modifies no Claude Code internals other than this audit file.
 
-## Research Baseline
+## 1. Research Baseline
 
-This audit refresh compared the repository's Claude Code setup with current public Claude Code documentation and then verified the local files on disk.
+This refresh used current Claude Code documentation plus local repository inspection.
 
 ### External references consulted
 
-- Claude Code feature overview: <https://code.claude.com/docs/en/features-overview>
-  - Key point applied here: `CLAUDE.md` is best for always-on context, skills for on-demand workflows, subagents for isolation, and hooks for automation.
-- Claude Code skills documentation: <https://code.claude.com/docs/en/skills>
-  - Key points applied here: skills load only when used, skills can be invoked as slash commands, custom commands still work, and skills are preferred when supporting files or richer frontmatter are useful.
-- Claude Code subagents documentation: <https://code.claude.com/docs/en/sub-agents>
-  - Key points applied here: subagents can preload skills through `skills:`, can use persistent project memory at `.claude/agent-memory/<agent>/MEMORY.md`, and the full content of preloaded skills enters the subagent's startup context.
-- Claude Code hooks documentation: <https://code.claude.com/docs/en/hooks>
-  - Key points applied here: hooks run at lifecycle events, can block or decide tool use, and agent hooks are available when verification requires file or output inspection.
-- Claude Code settings/configuration documentation: <https://code.claude.com/docs/en/configuration>
-  - Key points applied here: `.claude/settings.json` is the shared project settings layer, `permissions.deny` is the recommended mechanism for excluding secrets, and settings can also express sandbox, network, plugin, attribution, and default-agent behavior.
-- Claude Code permissions documentation: <https://code.claude.com/docs/en/permissions>
-  - Key points applied here: permission deny rules are evaluated before allow rules, hooks do not bypass permission rules, and file permission rules are not a substitute for OS-level sandboxing when subprocesses can read files indirectly.
+- Claude Code custom subagents: <https://code.claude.com/docs/en/sub-agents>
+  - Applied points: project subagents live under `.claude/agents/`; subagents can preload skills with `skills:`; `memory: project` maps to `.claude/agent-memory/<agent>/`; `permissionMode: bypassPermissions` is dangerous; subagent memory loads only the first 200 lines or 25 KB of `MEMORY.md`.
+- Claude Code skills: <https://code.claude.com/docs/en/skills>
+  - Applied points: skills are the preferred extensibility unit for reusable procedures; `.claude/commands/` still works but skills support richer frontmatter, supporting files, direct slash invocation, model invocation, and subagent execution; skills stay in context after invocation and may be partially reattached after compaction.
+- Claude Code hooks: <https://code.claude.com/docs/en/hooks>
+  - Applied points: hooks are deterministic lifecycle automation; current hook events include more than the older minimal event set; project-relative hooks should use `CLAUDE_PROJECT_DIR` when possible so they work from changed working directories.
+- Claude Code memory: <https://code.claude.com/docs/en/memory>
+  - Applied points: `CLAUDE.md` is guidance, not enforcement; root `CLAUDE.md` is re-read after compaction; overgrown instruction files reduce adherence; strict timing/security requirements belong in hooks or permissions.
+- Claude Code configuration debugging: <https://code.claude.com/docs/en/debug-your-config>
+  - Applied points: `/context`, `/memory`, `/skills`, `/agents`, `/hooks`, `/permissions`, `/doctor`, and `/status` are the right live-smoke commands for confirming what actually loaded.
 
 ### Local evidence commands run
 
 ```bash
 find .. -name AGENTS.md -print
-find .claude -maxdepth 4 -type f | sort | sed 's#^./##'
+find .claude -maxdepth 4 -type f -print 2>/dev/null | sort | sed -n '1,240p'
 python .claude/hooks/validate-claude-config.py
 python -m compileall -q .claude/hooks
 python - <<'PY'
 from pathlib import Path
 import yaml
+print('CLAUDE.md lines', len(Path('CLAUDE.md').read_text().splitlines()))
+print('audit lines', len(Path('CLAUDE_CODE_INTERNALS_AUDIT.md').read_text().splitlines()))
+print('\nAgents:')
 for p in sorted(Path('.claude/agents').glob('*.md')):
     text = p.read_text()
     fm = yaml.safe_load(text.split('---', 2)[1]) or {}
-    mem = Path('.claude/agent-memory') / fm.get('name', p.stem) / 'MEMORY.md'
-    print(f"{fm.get('name', p.stem)} skills={fm.get('skills', [])} memory={mem.exists()}")
-PY
-python - <<'PY'
-from pathlib import Path
-import yaml
+    print(p.name, fm)
+print('\nSkills:')
 for p in sorted(Path('.claude/skills').glob('*/SKILL.md')):
     text = p.read_text()
     fm = yaml.safe_load(text.split('---', 2)[1]) or {}
-    print(p.parent.name, 'disable-model-invocation=', fm.get('disable-model-invocation', False), 'lines=', len(text.splitlines()))
+    print(p.parent.name, fm, 'lines', len(text.splitlines()))
+print('\nCommands:')
+for p in sorted(Path('.claude/commands').glob('*.md')):
+    print(p.name, len(p.read_text().splitlines()))
 PY
+wc -l .claude/agent-memory/*/MEMORY.md | sort -n
+cat .claude/settings.json
+cat .claude/rules/synergy-contract.yml
+cat .claude/rules/evidence-schema.yml
 ```
 
-## Executive Summary
+### Local validation result
 
-The stale findings about missing project memory files and broken skill references should be removed. The current setup validates successfully, every checked-in project subagent with `memory: project` has a corresponding uppercase `MEMORY.md`, and the agent/skill inventory is coherent.
+- `python .claude/hooks/validate-claude-config.py` returned `claude config validation ok` and listed the model-invocable skills.
+- `python -m compileall -q .claude/hooks` passed with no output.
+- `CLAUDE.md` is 101 lines, comfortably below the documentation warning threshold where instruction adherence can degrade.
+- Every checked-in `memory: project` subagent has a corresponding `.claude/agent-memory/<agent>/MEMORY.md` file.
+- All agent memory files are currently small: 25-30 lines each, well under the documented first-200-lines startup load limit.
 
-The next improvements should focus on **stronger synergy, smaller context payloads, and enforceable safety boundaries**:
+## 2. Executive Summary
 
-1. **Turn the current agent/skill map into a machine-checkable contract.** The repository has a strong human-readable synergy map, but commands, agents, and validation still rely on prose. A small JSON/YAML contract would let hooks and `/ship` verify that each risk surface has exactly one primary specialist, required skills, and required evidence fields.
-2. **Move mature slash commands into skill directories.** Claude Code now treats skills and custom commands similarly, but skills support supporting files, richer invocation controls, and progressive disclosure. The current `.claude/commands/*.md` files are concise and valid, but high-value commands such as `ship`, `audit`, `review`, and `test` would be more reusable as skill-backed workflows.
-3. **Tighten permission and sandbox recommendations.** The current settings deny obvious `.env` reads and destructive shell patterns, but they do not block `Edit(.env*)`, do not add a `PreToolUse` protected-file guard, and do not define sandbox/network boundaries for subprocesses.
-4. **Reduce accidental model invocation for broad skills.** Skills like `edge-case-audit` and `fsv-verify` are valuable, but their descriptions are broad enough to trigger frequently. Keep them available, but make activation more explicit or split always-needed doctrine from expensive audit workflows.
-5. **Make release evidence deterministic.** `/ship` describes the desired fan-out, but the evidence shape returned by each specialist is not schema-checked. Add a shared evidence schema and make the validator check that all agent prompts and commands require it.
+The current Claude Code internals are materially stronger than the stale findings this file previously carried. The setup now has:
 
-## Current Inventory Snapshot
+- A machine-readable routing contract at `.claude/rules/synergy-contract.yml`.
+- A schema file for routed evidence at `.claude/rules/evidence-schema.yml`.
+- Command shims for `/audit`, `/review`, `/ship`, and `/test` that delegate to canonical skills.
+- A protected-file `PreToolUse` hook plus explicit deny rules for secrets and SQLite runtime files.
+- Project memory directories for all active `memory: project` agents.
+- A validator that checks frontmatter, skill references, project memory naming, command shims, settings policy, hook scripts, README drift, and broad security posture.
 
-### Project instruction layer
+The next improvements should therefore be evolutionary rather than a redesign. The highest-value work is to keep the current synergy model but make it more resilient to Claude Code platform drift, working-directory changes, live-session drift, and duplicated workflow logic.
 
-- `CLAUDE.md` is concise and appropriately delegates long workflows to `.claude/skills/`, `.claude/README.md`, and `.claude/rules/02-agent-synergy.md`.
-- `.claude/README.md` correctly treats `.claude/` as a first-class subsystem and documents validation commands, directory purposes, agent matrix, and skill matrix.
-- `.claude/rules/01-security.md` and `.claude/rules/02-agent-synergy.md` provide supplemental durable rules rather than bloating `CLAUDE.md`.
+## 3. Stale Findings Removed
 
-### Agents
+The following older findings are no longer valid and should not guide future work:
 
-There are 11 project subagents:
+1. **“Project subagent memory is missing.”** No longer true. All active `memory: project` agents have uppercase `MEMORY.md` files, and the validator enforces this.
+2. **“Settings do not protect `.env` writes or edits.”** No longer true. `Read`, `Edit`, and `Write` deny rules cover `.env*`, credential material, and SQLite runtime files.
+3. **“There is no `PreToolUse` protected-file guard.”** No longer true. `.claude/settings.json` wires `protect-sensitive-files.py` to `PreToolUse` for read, write, edit, multiedit, and bash operations.
+4. **“Slash commands duplicate the canonical workflows.”** Partly stale. `/audit`, `/review`, `/ship`, and `/test` are now compatibility shims to skills. Remaining direct commands still exist for `/build`, `/code-simplify`, `/plan`, and `/spec`.
+5. **“Routing is only prose.”** No longer true. `.claude/rules/synergy-contract.yml` is now the machine-readable routing source of truth, with `.claude/rules/02-agent-synergy.md` as the companion human-readable reference.
+6. **“There is no evidence schema.”** No longer true. `.claude/rules/evidence-schema.yml` defines required gate fields and routed specialist evidence structure.
 
-| Agent | Main role | Current strengths | Main improvement target |
-| --- | --- | --- | --- |
-| `ship` | Release coordinator | Has explicit main-session warning and specialist fan-out list. | Add structured evidence schema and validator coverage for its required subagent roster. |
-| `code-reviewer` | Read-only five-axis review | Concise prompt and preloaded `code-reviewer` skill. | Add standard handoff fields for domain-specialist escalation. |
-| `security-auditor` | Read-only security review | Preloads security, prompt-safety, and config-audit skills. | Consider read-only `Bash` or explicit dependency-audit handoff so it can verify security evidence instead of only reading files. |
-| `test-engineer` | Test authoring and coverage | Write-capable with test and FSV skills. | Clarify when it may write tests versus when it should only report coverage gaps. |
-| `test-writer` | Minimal test suggestion agent | Very small, low-turn prompt. | Merge into `test-engineer` or preload `test-regression`; otherwise it overlaps without shared doctrine. |
-| `fdd-investigator` | Root-cause falsification | Strong read-only forensic workflow. | Add required handoff output for when it escalates from root cause to implementer. |
-| `risk-gate-verifier` | Risk-control audit | Strong fit for trading simulator invariants. | Add machine-readable ownership of `RiskGate`, `ExecutionGate`, sizing, expiry, and bypass surfaces. |
-| `prompt-injection-auditor` | Prompt and context safety | Explicitly treats text as evidence, not instructions. | Add required prompt-flow trace format shared with `prompt-safety-review`. |
-| `trade-lifecycle-auditor` | SQLite/trade persistence | Preloads SQLite source-of-truth verification. | Add direct required DB evidence fields for lifecycle transitions. |
-| `market-data-integrity-auditor` | OHLCV/indicator/data failure audit | Strong deterministic failure-mode coverage. | Add explicit ownership of live-network isolation and yfinance mocks. |
-| `docs-memory-curator` | Docs and memory consistency | Preloads config-audit and release evidence. | Make it the owner of the future machine-readable synergy contract. |
+## 4. Current Inventory Snapshot
 
-### Skills
+### 4.1 Instruction layer
 
-There are 13 project skills. Four are already manual-only through `disable-model-invocation: true`: `claude-config-audit`, `dependency-audit`, `release-evidence-pack`, and `run-degenexus`. The remaining nine are model-invocable.
+- `CLAUDE.md` is concise at 101 lines and mostly delegates operational detail to skills, rules, and `.claude/README.md`.
+- `.claude/README.md` is the broad inventory and maps agents, skills, commands, hooks, rules, memory conventions, and naming rules.
+- `.claude/imports/doctrine-summary.md` and `.claude/rules/01-security.md` keep security and doctrine separate from the root instruction file.
 
-High-value reusable workflow skills:
+### 4.2 Agents
 
-- `fsv-verify`
-- `forensic-debug`
-- `edge-case-audit`
-- `test-regression`
-- `code-reviewer`
-- `security-review`
-- `prompt-safety-review`
-- `risk-control-audit`
-- `sqlite-sot-verify`
+Active specialist set:
 
-### Hooks and settings
+| Agent | Primary role | Write access | Preloaded skills | Memory |
+| --- | --- | ---: | --- | --- |
+| `code-reviewer` | Five-dimension code review | No | `code-reviewer` | Project |
+| `docs-memory-curator` | Claude internals, docs, memory consistency | No | `claude-config-audit`, `release-evidence-pack` | Project |
+| `fdd-investigator` | Root-cause analysis and falsification | No | `forensic-debug`, `fsv-verify` | Project |
+| `market-data-integrity-auditor` | OHLCV, indicators, fallbacks, NaN/warmup behavior | No | `edge-case-audit`, `fsv-verify` | Project |
+| `prompt-injection-auditor` | Prompt-safety and trust-boundary review | No | `prompt-safety-review`, `edge-case-audit` | Project |
+| `risk-gate-verifier` | Risk and execution gate verification | No | `risk-control-audit`, `edge-case-audit`, `fsv-verify` | Project |
+| `security-auditor` | Security, secrets, dependency handoffs, prompt escalation | No | `security-review`, `prompt-safety-review`, `claude-config-audit` | Project |
+| `ship` | Merge-readiness orchestration | No direct writes | `claude-config-audit`, `release-evidence-pack` | Project |
+| `test-engineer` | Canonical test author and coverage specialist | Yes | `test-regression`, `edge-case-audit`, `fsv-verify` | Project |
+| `test-writer` | Deprecated read-only compatibility alias | No | None | No project memory field |
+| `trade-lifecycle-auditor` | SQLite and trade lifecycle source-of-truth verification | No | `sqlite-sot-verify`, `fsv-verify`, `edge-case-audit` | Project |
 
-- `.claude/settings.json` has project-level deny rules for destructive shell patterns, `.env` reads, and `.env` writes through shell echo patterns.
-- Hooks currently cover `PostToolUse`, `SubagentStart`, `SubagentStop`, `ConfigChange`, `SessionStart`, and `FileChanged`.
-- The local validator passes and hooks compile.
+### 4.3 Skills and commands
 
-## Findings and Actionable Improvements
+- Workflow skills with command-shim coverage: `audit`, `review`, `ship`, `test`.
+- Model-invocable specialist skills: `code-reviewer`, `edge-case-audit`, `forensic-debug`, `fsv-verify`, `prompt-safety-review`, `risk-control-audit`, `security-review`, `sqlite-sot-verify`, `test-regression`.
+- Manual-only or preloaded support skills: `claude-config-audit`, `dependency-audit`, `fsv-verify-deep`, `release-evidence-pack`, `run-degenexus`.
+- Remaining direct commands: `/build`, `/code-simplify`, `/plan`, `/spec`.
 
-### P0 — No immediate broken-internals blocker found
+### 4.4 Hooks and safety controls
 
-**Finding:** The current configuration is valid under the local validator. Project memory files use the documented uppercase `MEMORY.md` form, and all agent skill references resolve to checked-in skills.
+Configured hooks:
 
-**Evidence:** `python .claude/hooks/validate-claude-config.py` returned `claude config validation ok`; `python -m compileall -q .claude/hooks` completed successfully; every agent memory directory contains `MEMORY.md`.
+| Hook event | Script | Current purpose |
+| --- | --- | --- |
+| `PreToolUse` | `protect-sensitive-files.py` | Block protected file access before read/write/edit/bash tool execution. |
+| `PostToolUse` | `validate-claude-config.py` | Validate Claude config after writes/edits/multiedits. |
+| `SubagentStart` / `SubagentStop` | `log-subagent-event.py` | Record local JSONL subagent lifecycle events. |
+| `ConfigChange` | `validate-claude-config.py` | Validate on project settings and skill config changes. |
+| `SessionStart` | `session-start-reminder.py` | Print project routing reminder. |
+| `FileChanged` | `warn-env-file-changed.py` | Warn when `.env*`-style files change. |
 
-**Action:** Remove stale remediation work about missing uppercase memory files or missing skill references from planning queues. Keep the validator check in release gates.
+## 5. Priority Action Register
 
----
+### P0 — Keep validator aligned with current Claude Code hook events
 
-### P1 — Add a machine-readable agent/skill synergy contract
+**Finding:** The local validator has a fixed `ALLOWED_HOOK_EVENTS` list. Current Claude Code hook documentation includes a broader lifecycle than the validator allows, including events such as `Setup`, `UserPromptExpansion`, `PermissionRequest`, `PermissionDenied`, `PostToolUseFailure`, `PostToolBatch`, `TaskCreated`, `TeammateIdle`, `PreCompact`, `PostCompact`, `WorktreeCreate`, `WorktreeRemove`, `InstructionsLoaded`, `CwdChanged`, and `MessageDisplay`. The current repository settings do not use those events, so validation passes today, but the validator may block valid future configuration.
 
-**Problem:** `.claude/rules/02-agent-synergy.md`, `.claude/README.md`, and command files describe specialist routing in prose. Prose is useful for humans but hard for hooks or validators to enforce.
+**Why it matters:** The `.claude` system is now mature enough that future improvements are likely to use additional hooks. A stale allow-list will create false negatives and encourage bypassing validation.
 
-**Why it matters:** The repository's doctrine depends on correct delegation. If a command forgets to invoke `prompt-injection-auditor` for prompt-template changes, or `risk-gate-verifier` for execution changes, the omission is hard to catch automatically.
+**Actionable improvement:**
 
-**Recommended change:** Add a checked-in contract file such as `.claude/rules/synergy-contract.yml` or `.claude/synergy.json` with this structure:
-
-```yaml
-risk_surfaces:
-  prompt_safety:
-    primary_agent: prompt-injection-auditor
-    required_skills:
-      - prompt-safety-review
-      - edge-case-audit
-    file_globs:
-      - "src/**/*prompt*"
-      - "src/agents/**/*.py"
-      - ".claude/agents/*.md"
-      - ".claude/skills/*/SKILL.md"
-    required_evidence:
-      - prompt_flow_trace
-      - sanitizer_boundary
-      - regression_tests
-  risk_controls:
-    primary_agent: risk-gate-verifier
-    required_skills:
-      - risk-control-audit
-      - fsv-verify
-    file_globs:
-      - "src/core/risk*.py"
-      - "src/core/execution*.py"
-    required_evidence:
-      - pre_state
-      - post_state
-      - expected_delta
-```
+1. Add every documented hook event to `ALLOWED_HOOK_EVENTS` in `.claude/hooks/validate-claude-config.py`.
+2. Split hook metadata into `matcher_allowed`, `matcher_ignored`, and `decision_capable` maps instead of two small sets.
+3. Add a short `HOOK_EVENT_SOURCE_DATE = "2026-05-28"` comment and a reference to <https://code.claude.com/docs/en/hooks>.
+4. Add a small validator self-test fixture or script that validates one representative config containing newer events without changing project settings.
 
 **Acceptance criteria:**
 
-- `validate-claude-config.py` verifies that every `primary_agent` exists.
-- It verifies every listed skill exists.
-- It verifies `/ship`, `/review`, `/audit`, and `/test` mention or load the contract rather than duplicating divergent prose.
-- It verifies each agent prompt requires the evidence fields owned by that agent.
+- `python .claude/hooks/validate-claude-config.py` still passes.
+- `python -m compileall -q .claude/hooks` still passes.
+- A scratch config containing `InstructionsLoaded`, `PreCompact`, and `PostToolUseFailure` is accepted by the validator logic.
 
-**Suggested owner:** `docs-memory-curator` with review from `ship` and `code-reviewer`.
+### P0 — Make hook commands working-directory independent
 
----
+**Finding:** Hook commands in `.claude/settings.json` call scripts using relative paths such as `python .claude/hooks/validate-claude-config.py`. Claude Code documentation recommends `CLAUDE_PROJECT_DIR` for project-stored hook scripts so hooks still work when Claude's current directory changes.
 
-### P1 — Strengthen protected-file enforcement beyond current `.env` deny rules
+**Why it matters:** This repo has path-sensitive rules and a `CwdChanged` hook opportunity. A subagent or future workflow operating from a nested directory could make relative hook commands brittle.
 
-**Problem:** The current settings deny `Read(.env*)`, `Bash(cat .env*)`, and `Bash(echo * > .env*)`, but they do not explicitly deny `Edit(.env*)`, `Write(.env*)`, or broader secret paths such as `secrets/**`, `*.pem`, `*.key`, and credential JSON files. They also rely on Bash pattern matching for some shell operations.
+**Actionable improvement:**
 
-**Why it matters:** Claude Code permission rules are useful, but the permissions documentation notes that file rules do not cover arbitrary subprocesses that read files indirectly. For a trading simulator with provider API keys, defense-in-depth should include explicit `Read`/`Edit` denies plus a `PreToolUse` protected-file hook.
-
-**Recommended change:** In a future internals patch, extend `.claude/settings.json` and add a protected-file hook.
-
-Suggested deny expansion:
-
-```json
-{
-  "permissions": {
-    "deny": [
-      "Read(./.env)",
-      "Read(./.env.*)",
-      "Read(./secrets/**)",
-      "Read(./**/*.pem)",
-      "Read(./**/*.key)",
-      "Edit(./.env)",
-      "Edit(./.env.*)",
-      "Edit(./secrets/**)",
-      "Edit(./**/*.pem)",
-      "Edit(./**/*.key)",
-      "Bash(rm -rf *)",
-      "Bash(git push --force*)"
-    ]
-  }
-}
-```
-
-Suggested hook addition:
-
-- Add `.claude/hooks/protect-sensitive-files.py`.
-- Register it on `PreToolUse` for `Read|Write|Edit|MultiEdit|Bash`.
-- Have it block paths matching `.env*`, `secrets/**`, `*.pem`, `*.key`, SQLite DB/WAL/SHM files, and any future credential manifests.
+1. Change hook commands from `python .claude/hooks/<script>.py` to `python "$CLAUDE_PROJECT_DIR/.claude/hooks/<script>.py"` or a shell-safe equivalent.
+2. Update `validate-claude-config.py` to continue resolving `ROOT` from its own location, not from process CWD.
+3. Add a validation smoke command: `cd src && python ../.claude/hooks/validate-claude-config.py`.
 
 **Acceptance criteria:**
 
-- Attempts to read or edit `.env`, `.env.local`, `secrets/foo`, and `private.pem` are blocked before tool execution.
-- The hook returns machine-readable blocking output and a human-readable remediation message.
-- `validate-claude-config.py` checks that protected-file deny patterns and the hook registration remain present.
+- Hooks still validate from repository root.
+- The validator passes when launched from `src/`.
+- The settings validator accepts the new command strings.
 
-**Suggested owner:** `security-auditor` with `docs-memory-curator` validating settings syntax.
+### P1 — Add `InstructionsLoaded` and optional `CwdChanged` observability
 
----
+**Finding:** Debug documentation explicitly calls out `/memory`, `/context`, and the `InstructionsLoaded` hook as ways to confirm what instruction files actually loaded. The current setup has `SessionStart` reminders and config validation, but no durable log of loaded instruction files.
 
-### P1 — Make `/ship` evidence schema-checkable
+**Why it matters:** The repository depends on multiple instruction sources: `AGENTS.md`, `CLAUDE.md`, `.claude/rules/*`, agent frontmatter, skill frontmatter, and project memories. Debugging future “Claude ignored the rule” reports would be easier with a local, redacted log of instruction-load events.
 
-**Problem:** `/ship` and the `ship` subagent request many kinds of evidence, but each specialist is free to return narrative output. This makes release decisions harder to compare across runs.
+**Actionable improvement:**
 
-**Why it matters:** DegenExus doctrine emphasizes source-of-truth verification. A release coordinator should not infer whether a specialist performed PRE/POST/DIFF or whether edge cases were considered; it should receive those fields explicitly.
-
-**Recommended change:** Add `.claude/references/evidence-schema.md` or `.claude/rules/evidence-schema.yml` and require all agents to emit it.
-
-Suggested minimal evidence fields:
-
-```yaml
-verdict: PASS | BLOCK | NEEDS_INFO
-scope_reviewed: []
-source_of_truth:
-  files: []
-  runtime_state: []
-commands_run:
-  - command: ""
-    result: PASS | FAIL | WARNING | NOT_RUN
-    reason: ""
-findings:
-  critical: []
-  important: []
-  suggestions: []
-edge_cases:
-  - name: ""
-    covered_by: test | reasoning | not_covered
-handoffs:
-  - agent: ""
-    reason: ""
-memory_update:
-  needed: true | false
-  path: ""
-```
+1. Add `.claude/hooks/log-instructions-loaded.py` that writes redacted event summaries to `.claude/local/instructions-loaded.jsonl`.
+2. Register it under `InstructionsLoaded` once the validator allow-list is updated.
+3. Optionally add a `CwdChanged` hook that prints a short reminder that project hooks should continue to rely on `CLAUDE_PROJECT_DIR`.
+4. Ensure `.claude/local/` remains ignored and never committed.
 
 **Acceptance criteria:**
 
-- `ship` rejects a specialist result that lacks `verdict`, `scope_reviewed`, `source_of_truth`, and `findings`.
-- `release-evidence-pack` uses the same schema.
-- `docs-memory-curator` audits PR text against the schema.
+- `/memory` and `/context` live smoke output can be correlated with `.claude/local/instructions-loaded.jsonl`.
+- No secret or full prompt content is written to the log.
+- `python -m compileall -q .claude/hooks` passes.
 
-**Suggested owner:** `ship` and `docs-memory-curator`.
+### P1 — Convert remaining direct slash commands into skill-backed workflows or declare them intentionally simple
 
----
+**Finding:** `/audit`, `/review`, `/ship`, and `/test` have been modernized into skill shims, but `/build`, `/code-simplify`, `/plan`, and `/spec` still keep full workflow prose in `.claude/commands/`. Claude Code skills now provide the same slash-command affordance while adding supporting files and richer frontmatter.
 
-### P2 — Convert mature slash commands into skills with supporting files
+**Why it matters:** The command layer is now mixed: some commands delegate to canonical skills and others are standalone. That is not broken, but it raises drift risk as conventions evolve.
 
-**Problem:** `.claude/commands/` still works, but Claude Code documentation now positions skills as the richer mechanism: skills can be slash-invoked, auto-invoked, packaged with references/scripts, and controlled with frontmatter such as `disable-model-invocation`.
+**Actionable improvement:**
 
-**Why it matters:** `ship`, `audit`, `review`, and `test` are not just shortcuts; they are repeatable workflows with evidence templates and specialist routing. Keeping them as single command files encourages duplication and limits progressive disclosure.
-
-**Recommended change:** Convert commands gradually, not all at once:
-
-1. Create `.claude/skills/ship/SKILL.md` with `disable-model-invocation: true`.
-2. Move reusable evidence details into `.claude/skills/ship/references/evidence-schema.md`.
-3. Keep `.claude/commands/ship.md` as a thin compatibility shim that says: `Invoke /ship skill and follow .claude/rules/02-agent-synergy.md`.
-4. Repeat for `audit`, `review`, and `test`.
+1. Create `.claude/skills/build/SKILL.md`, `.claude/skills/code-simplify/SKILL.md`, `.claude/skills/plan/SKILL.md`, and `.claude/skills/spec/SKILL.md` if these workflows are expected to grow.
+2. Replace the corresponding command files with shims that cite the skill, `.claude/rules/synergy-contract.yml`, and `.claude/rules/evidence-schema.yml`.
+3. If a workflow should remain command-only, add a one-line `Intentional command-only because ...` note to the command file and README command matrix.
 
 **Acceptance criteria:**
 
-- `/ship`, `/audit`, `/review`, and `/test` remain available.
-- Their canonical workflow lives in skill directories.
-- `validate-claude-config.py` warns if command and skill content diverge.
-- Supporting references are loaded only when the skill is used.
+- All user-facing slash workflows have one canonical source.
+- `validate-claude-config.py` verifies either a skill shim or an intentional exception for every command.
+- README command matrix remains in sync.
 
-**Suggested owner:** `docs-memory-curator`.
+### P1 — Strengthen live-smoke evidence for Claude Code internals changes
 
----
+**Finding:** The current `claude-config-audit` skill includes a live smoke template reference, and `/ship` requires live smoke only for internals changes when an interactive Claude Code environment is available. The file-level validation is strong, but live smoke remains mostly manual.
 
-### P2 — Tune broad model-invocable skills to avoid accidental context inflation
+**Why it matters:** Static validation cannot prove Claude Code actually loaded project skills, agents, hooks, permissions, and memories in the active session. The docs recommend `/context`, `/skills`, `/agents`, `/hooks`, `/permissions`, `/doctor`, and `/status` for this exact problem.
 
-**Problem:** The model-invocable skills `edge-case-audit` and `fsv-verify` intentionally describe broad triggers. This is helpful for safety but can cause frequent activation and load long workflow content into context.
+**Actionable improvement:**
 
-**Why it matters:** Claude Code documentation emphasizes that skills save context because their bodies load only when used. If very broad descriptions cause automatic activation too often, that benefit is reduced.
-
-**Recommended change:** Split broad skills into small doctrine skills plus heavier manual workflows:
-
-- Keep a short model-invocable `fsv-doctrine` or slim `fsv-verify` skill with the PRE → ACT → POST → DIFF → HALT rule.
-- Move the full adversarial checklist into `fsv-verify-deep` with `disable-model-invocation: true`.
-- Shorten `edge-case-audit`'s description to a neutral trigger and move the long activation wording into `when_to_use` or references.
-- Add validator warnings for descriptions above a chosen threshold, such as 300 characters for model-invocable skills.
+1. Expand `.claude/skills/claude-config-audit/references/live-smoke-template.md` into a checklist with explicit PASS/WARNING/NOT_RUN fields for `/context`, `/memory`, `/skills`, `/agents`, `/hooks`, `/permissions`, `/doctor`, and `/status`.
+2. Require the checklist in `release-evidence-pack` when `.claude/**`, `CLAUDE.md`, or `AGENTS.md` changed.
+3. Add a section for “expected loaded objects” generated from the local inventory: active agents, model-invocable skills, manual-only skills, hooks, and project memory roots.
 
 **Acceptance criteria:**
 
-- Routine implementation turns still see the FSV doctrine.
-- Deep audit checklists load only when explicitly invoked or preloaded by the relevant specialist.
-- `/skills` remains readable and has less trigger ambiguity.
+- An internals PR cannot claim full live validation without enumerating the relevant Claude Code live-smoke commands.
+- Non-interactive sessions can still mark those commands `NOT_RUN` with an environment reason.
 
-**Suggested owner:** `docs-memory-curator`, reviewed by `test-engineer` and `risk-gate-verifier`.
+### P2 — Add schema validation for actual specialist outputs, not just config files
 
----
+**Finding:** `.claude/rules/evidence-schema.yml` defines required fields, and agent prompts require them, but no hook or script currently validates a captured specialist result against the schema.
 
-### P2 — Clarify `security-auditor` evidence authority
+**Why it matters:** The strongest synergy goal is reliable handoff evidence. A schema file is useful only if `/ship`, `/review`, or a supporting script can reject missing `verdict`, `scope_reviewed`, `source_of_truth`, or `findings` before a release decision.
 
-**Problem:** `security-auditor` is read-only and does not include `Bash`, but it preloads `claude-config-audit`, which is a manual skill that commonly needs to run `python .claude/hooks/validate-claude-config.py`, and it owns dependency/security evidence that often requires commands.
+**Actionable improvement:**
 
-**Why it matters:** A security reviewer that cannot run read-only commands must either trust parent-provided output or issue a handoff. That is acceptable, but the prompt should make the boundary explicit.
-
-**Recommended change:** Choose one of two patterns:
-
-- **Read-only evidence consumer:** Keep no `Bash`, but require the parent or `ship` to provide outputs from config validation, `pip-audit`, and secret scans.
-- **Read-only command verifier:** Add `Bash` but constrain prompt and settings to read-only commands such as `python .claude/hooks/validate-claude-config.py`, `python -m compileall -q .claude/hooks`, `git diff --check`, and `pip-audit -r requirements.txt` when relevant.
+1. Add `.claude/hooks/validate-evidence-payload.py` or `.claude/scripts/validate-evidence-payload.py` that reads JSON/YAML/Markdown-with-frontmatter evidence and checks `.claude/rules/evidence-schema.yml`.
+2. Update `release-evidence-pack` to ask specialists to emit a fenced `yaml` block matching the schema.
+3. Teach `/ship` to collect those blocks and run the validator when shell execution is available.
 
 **Acceptance criteria:**
 
-- `security-auditor` output states whether it personally ran evidence commands or consumed parent-provided evidence.
-- `ship` knows which evidence commands it must run before invoking a no-Bash security audit.
-- `dependency-audit` ownership is explicit.
+- Missing `verdict` or empty `source_of_truth.files` fails the evidence validator.
+- `NEEDS_INFO` is allowed only with a concrete remediation owner or handoff.
+- `/ship` reports schema validation as PASS/WARNING/FAIL.
 
-**Suggested owner:** `security-auditor`.
+### P2 — Add explicit read-only enforcement tests for read-only agents
 
----
+**Finding:** Most agents are read-only by frontmatter and disallow `Write`, `Edit`, and often `Bash`. The validator permits only `test-engineer` as a known write-capable agent, but there is no dedicated regression fixture documenting the allowed/blocked matrix.
 
-### P2 — Resolve `test-writer` versus `test-engineer` overlap
+**Why it matters:** The read-only/write-capable distinction is a core safety boundary for agent synergy. A future agent addition or tool-name change should not silently weaken it.
 
-**Problem:** `test-writer` is a minimal low-turn agent with no preloaded skills, while `test-engineer` owns test authoring with `test-regression`, `edge-case-audit`, and `fsv-verify`. The distinction is not obvious in the synergy map.
+**Actionable improvement:**
 
-**Why it matters:** Overlapping agents create routing uncertainty. If a command chooses the lightweight agent for a behavioral change, it may miss project testing doctrine.
-
-**Recommended change:** Pick one strategy:
-
-1. **Deprecate `test-writer`:** Remove it after updating references to use `test-engineer` for all test work.
-2. **Specialize `test-writer`:** Make it read-only and explicitly limited to producing test-case lists, never editing files. Preload `test-regression` or a slim test-planning skill.
+1. Add a validator check that every agent except `test-engineer` and explicitly approved orchestrators disallows `Write`, `Edit`, and `MultiEdit`.
+2. Require any write-capable agent to have `permissionMode: acceptEdits` or stricter, never `bypassPermissions`.
+3. Add a README section named “Write-capable exception register” that currently lists only `test-engineer`.
 
 **Acceptance criteria:**
 
-- `.claude/rules/02-agent-synergy.md` states exactly when to use each test agent.
-- `validate-claude-config.py` warns if an agent with `test` in the name has no test skill and no explicit rationale.
-- `/test` routes to only one canonical owner unless the user asks for a lightweight plan.
+- Adding `Write` to `security-auditor` causes validation failure.
+- Adding `bypassPermissions` anywhere causes validation failure.
+- The exception register and validator constant remain in sync.
 
-**Suggested owner:** `test-engineer` and `docs-memory-curator`.
+### P2 — Tune broad model-invocable skills to avoid accidental context bloat
 
----
+**Finding:** `edge-case-audit` and `fsv-verify` are valuable and intentionally model-invocable, but their descriptions are broad. Claude Code documentation notes that invoked skills remain in context and are reattached after compaction within budget.
 
-### P2 — Add validator coverage for newer Claude Code settings and schema drift
+**Why it matters:** Broad skills can trigger often and then persist in context, which may reduce room for source code, test output, or specialist findings. The current descriptions are under the validator's 300-character limit, but trigger breadth is still a qualitative risk.
 
-**Problem:** The local validator already checks many repository-specific invariants, but current Claude Code docs include additional settings surfaces that are not checked: sandbox settings, network/domain restrictions, plugin settings, default `agent`, attribution, and protected-file path syntax.
+**Actionable improvement:**
 
-**Why it matters:** `.claude/settings.json` is executable workflow configuration. Schema drift or broad permissions can silently weaken safety.
-
-**Recommended change:** Extend `.claude/hooks/validate-claude-config.py` to check:
-
-- Unknown top-level `.claude/settings.json` keys.
-- Missing `Edit` denies for any protected `Read` deny path.
-- Missing `PreToolUse` hook for sensitive files if protected-file policy is adopted.
-- Network/sandbox policy presence or an explicit documented waiver.
-- Whether command shims have matching skill directories after migration.
-- Whether broad model-invocable skills exceed the selected description-length threshold.
-- Whether every `Agent(...)` tool reference points to an existing project or documented external agent.
+1. Split `fsv-verify` into a tiny always-invocable doctrine skill and keep `fsv-verify-deep` manual-only for the expensive checklist.
+2. Narrow `edge-case-audit` trigger wording to safety-critical, resilience, and boundary reviews rather than generic “edge cases” if accidental invocation is observed.
+3. Add a short “context cost” note to `.claude/README.md` explaining which skills are safe to preload and which should stay manual.
 
 **Acceptance criteria:**
 
-- Validator keeps returning zero errors on the current intended config.
-- New warnings are actionable and suppressible only through an explicit documented waiver.
-- CI or `/ship` runs the validator when any `.claude/**` file changes.
+- Model-invocable descriptions remain concise.
+- Heavy reference material stays in `references/` and is loaded only on demand.
+- `/skills` live smoke confirms expected visibility.
 
-**Suggested owner:** `docs-memory-curator`.
+### P2 — Introduce a generated inventory check to reduce README drift
 
----
+**Finding:** The validator already checks README drift in broad terms, but the inventory is still manually maintained. The local `.claude` tree is structured enough to generate an agent/skill/command/hook summary.
 
-### P3 — Add local Claude Code smoke-test transcript guidance
+**Why it matters:** The README is useful because it is comprehensive. Manual updates become harder as agents, skills, and hooks grow.
 
-**Problem:** `.claude/README.md` recommends interactive checks such as `/context`, `/memory`, `/agents`, `/skills`, `/hooks`, `/permissions`, `/doctor`, and `/status`, but there is no template for recording the results.
+**Actionable improvement:**
 
-**Why it matters:** These commands can catch live Claude Code discovery issues that static validation cannot, especially skill visibility and hook loading.
+1. Add a `--print-inventory` mode to `validate-claude-config.py` that emits Markdown tables for agents, skills, commands, hooks, and memories.
+2. Add a generated block marker in `.claude/README.md`, such as `<!-- BEGIN GENERATED CLAUDE INVENTORY -->`.
+3. Validate that the generated block matches the file.
 
-**Recommended change:** Add a short evidence template, likely under `.claude/skills/claude-config-audit/references/live-smoke-template.md`:
+**Acceptance criteria:**
+
+- Adding a skill without updating README fails validation or prints an exact patch block.
+- The generated inventory includes invocation mode, owner agents, and memory status.
+
+## 6. Suggested Implementation Sequence
+
+1. **Validator platform refresh:** Update hook event allow-list and matcher metadata first, because it unblocks safe use of newer hooks.
+2. **Hook path hardening:** Switch hook commands to `CLAUDE_PROJECT_DIR` and smoke-test from a nested directory.
+3. **Instruction observability:** Add `InstructionsLoaded` logging once the validator accepts the event.
+4. **Command canonicalization:** Decide whether `/build`, `/code-simplify`, `/plan`, and `/spec` should become skills or explicitly documented command-only workflows.
+5. **Evidence enforcement:** Add a payload validator and teach `/ship` to require schema-valid specialist blocks.
+6. **README inventory generation:** Automate drift checks after the final structure settles.
+
+## 7. Verification Checklist for the Next Internals PR
+
+Use this checklist when implementing any of the recommendations above:
 
 ```markdown
-# Claude Code Live Smoke Evidence
+## Claude Internals Verification
 
-Date:
-Claude Code version:
-Working directory:
+### Static validation
+- [ ] `python .claude/hooks/validate-claude-config.py`
+- [ ] `python -m compileall -q .claude/hooks`
+- [ ] `cd src && python ../.claude/hooks/validate-claude-config.py`
 
-- /status:
-- /agents:
-- /skills:
-- /hooks:
-- /permissions:
-- /doctor:
+### Inventory checks
+- [ ] Every `memory: project` agent has `.claude/agent-memory/<agent>/MEMORY.md`.
+- [ ] Every preloaded skill in agent frontmatter exists under `.claude/skills/<skill>/SKILL.md`.
+- [ ] Every workflow command either delegates to a skill or declares why it is command-only.
+- [ ] `.claude/README.md` inventory matches agents, skills, commands, hooks, and rules.
 
-Findings:
-Follow-up issues:
+### Safety checks
+- [ ] No `.env*`, `secrets/**`, `*.pem`, `*.key`, `*.db`, `*.db-wal`, or `*.db-shm` files are added.
+- [ ] No agent uses `permissionMode: bypassPermissions`.
+- [ ] Only documented write-capable agents can use `Write`, `Edit`, or `MultiEdit`.
+- [ ] Hook commands work from a nested CWD.
+
+### Live smoke, if interactive Claude Code is available
+- [ ] `/context` shows expected memory, skills, tools, and instruction sources.
+- [ ] `/memory` lists project `CLAUDE.md` and expected rules.
+- [ ] `/skills` lists project skills and expected invocation modes.
+- [ ] `/agents` lists all project agents with expected settings.
+- [ ] `/hooks` lists project hooks.
+- [ ] `/permissions` shows protected-file deny rules.
+- [ ] `/doctor` reports no config/schema issues.
+- [ ] `/status` shows expected settings sources.
 ```
 
-**Acceptance criteria:**
+## 8. Bottom Line
 
-- `claude-config-audit` prompts for this template after internals changes.
-- `/ship` requires live smoke evidence only when `.claude/**`, `CLAUDE.md`, or `AGENTS.md` changed.
-
-**Suggested owner:** `docs-memory-curator`.
-
----
-
-### P3 — Document project memory curation thresholds per agent
-
-**Problem:** Claude Code loads only an initial portion of project agent memory. The current memory files exist, but the audit did not find per-agent curation thresholds or summaries in a shared policy.
-
-**Why it matters:** Project memory can silently become less useful as it grows. Important facts should stay in the first summary section, while historical details can move lower or into references.
-
-**Recommended change:** Add a memory convention to `.claude/README.md` or `.claude/rules/02-agent-synergy.md`:
-
-- First section: `Current operating assumptions`.
-- Second section: `Recent validated learnings`.
-- Third section: `Historical notes`.
-- Require curators to keep the first 200 lines concise.
-
-**Acceptance criteria:**
-
-- `docs-memory-curator` audits memory files for the convention.
-- Validator warns if a `MEMORY.md` exceeds a chosen soft line limit without a top summary section.
-
-**Suggested owner:** `docs-memory-curator`.
-
-## Suggested Implementation Sequence
-
-1. **Create the synergy contract** and update validator checks for agent/skill existence.
-2. **Add the evidence schema** and update `ship`, `release-evidence-pack`, and core agents to emit it.
-3. **Strengthen protected-file controls** with expanded deny rules and a `PreToolUse` hook.
-4. **Convert `/ship` to a skill-backed workflow**, then migrate `/audit`, `/review`, and `/test`.
-5. **Tune broad skills** to reduce accidental activation and context inflation.
-6. **Resolve `test-writer` ownership** by either deprecating it or making it a test-planning-only specialist.
-7. **Extend live smoke evidence** for interactive Claude Code checks after internals changes.
-
-## Definition of Done for the Next Internals Improvement PR
-
-A follow-up implementation PR should include:
-
-- Updated `.claude/**` files for the selected improvement.
-- `python .claude/hooks/validate-claude-config.py` output.
-- `python -m compileall -q .claude/hooks` output.
-- If settings or hooks changed, a negative test or manual evidence showing a protected action is blocked.
-- If agents or skills changed, `/agents` and `/skills` live smoke evidence or a documented reason it could not be run in the environment.
-- At least three edge cases, including one prompt-injection/security edge, one missing-file/config edge, and one stale-memory/context edge.
-
-## Stale Findings Removed
-
-The following stale findings should no longer be carried forward:
-
-- **Missing uppercase project memory files:** current project agent memory files are uppercase `MEMORY.md`.
-- **Missing skill references from agents:** the current validator reports no missing skill references.
-- **No `.claude/settings.json`:** project settings now exist and include permissions and hooks.
-- **Commands referencing removed `agent-skills:*` plugin names:** the validator no longer reports stale plugin references.
-- **Broken Claude internals validation:** `validate-claude-config.py` currently passes.
-
----
-
-## Implementation PR Map — 2026-05-28
-
-This section maps every finding above to the single implementation PR that closes it. Downstream agents should treat the files below as the new source-of-truth implementation and run `python .claude/hooks/validate-claude-config.py` plus `python -m compileall -q .claude/hooks` before review.
-
-| Finding | Status | Implementation source of truth |
-| --- | --- | --- |
-| P0 — no immediate broken-internals blocker | Preserved | Validator remains the release gate in `.claude/hooks/validate-claude-config.py`; no stale missing-memory or missing-skill work is reintroduced. |
-| P1 — machine-readable agent/skill synergy contract | Addressed | `.claude/rules/synergy-contract.yml` defines risk surfaces, primary agents, required skills, globs, evidence fields, and command-contract references. `.claude/hooks/validate-claude-config.py` validates agent existence, skill existence, command references, and agent-owned evidence fields. |
-| P1 — stronger protected-file enforcement | Addressed | `.claude/settings.json` expands `Read`/`Edit`/`Write` deny rules for `.env*`, `secrets/**`, key/cert/credential JSON, and SQLite runtime files. `.claude/hooks/protect-sensitive-files.py` blocks protected `Read`, `Write`, `Edit`, `MultiEdit`, and `Bash` tool calls at `PreToolUse`. |
-| P1 — schema-checkable `/ship` evidence | Addressed | `.claude/rules/evidence-schema.yml` defines required evidence fields. `.claude/skills/ship/SKILL.md`, `.claude/agents/ship.md`, and `.claude/skills/release-evidence-pack/SKILL.md` require the schema and reject malformed specialist evidence. |
-| P2 — convert mature slash commands into skills | Addressed | Canonical manual skills now exist under `.claude/skills/ship/`, `.claude/skills/audit/`, `.claude/skills/review/`, and `.claude/skills/test/`. `.claude/commands/{ship,audit,review,test}.md` are compatibility shims pointing to the skill and contract/schema files. |
-| P2 — tune broad model-invocable skills | Addressed | `edge-case-audit` has a shorter model-invocable description. `fsv-verify` is a slim doctrine skill. Heavy FSV material moved to manual `fsv-verify-deep` and `fsv-verify-deep/references/adversarial-checklist.md`. Validator warns for model-invocable descriptions over 300 characters. |
-| P2 — clarify `security-auditor` evidence authority | Addressed | `.claude/rules/02-agent-synergy.md` documents `security-auditor` as a no-`Bash` evidence consumer. `.claude/agents/security-auditor.md` requires output to state parent-provided versus static-inspection evidence and makes dependency-audit command ownership explicit. |
-| P2 — resolve `test-writer` versus `test-engineer` overlap | Addressed | `.claude/rules/02-agent-synergy.md` declares `test-engineer` the canonical test owner and `test-writer` a deprecated read-only redirect. Validator warns if test-named agents lack test skills or explicit rationale. |
-| P2 — add validator coverage for settings and schema drift | Addressed | `.claude/hooks/validate-claude-config.py` now checks settings top-level keys, protected-file deny/edit/write parity, protected-file hook registration, sandbox/network waiver presence, command-skill shims, broad model-invocable skill descriptions, synergy contract references, evidence schema references, and README inventory drift. `.claude/rules/settings-policy-waivers.yml` documents current sandbox/network waivers. |
-| P3 — add local Claude Code smoke-test transcript guidance | Addressed | `.claude/skills/claude-config-audit/references/live-smoke-template.md` captures `/status`, `/agents`, `/skills`, `/hooks`, `/permissions`, and `/doctor` evidence. `.claude/skills/ship/SKILL.md` requires live smoke evidence for Claude internals changes or `NOT_RUN` with reason. |
-| P3 — document project-memory curation thresholds | Addressed | `.claude/rules/02-agent-synergy.md` and `.claude/README.md` define the first-200-lines memory convention and section order. Existing project memories now include `Current operating assumptions`, `Recent validated learnings`, and `Historical notes`. Validator warns on oversized memory files without the top summary section. |
-
-### Review checklist for this PR
-
-- Confirm `python .claude/hooks/validate-claude-config.py` exits 0 and lists no warnings.
-- Confirm `python -m compileall -q .claude/hooks` exits 0.
-- Confirm negative protected-file hook samples block `.env.local` and `secrets/foo` before tool execution.
-- Confirm normal file access samples, such as `src/main.py`, are not blocked by the protected-file hook.
-- Interactive Claude Code smoke checks are not runnable in this non-interactive environment; use `.claude/skills/claude-config-audit/references/live-smoke-template.md` during human review if needed.
+The Claude Code internals are currently coherent, validated, and substantially aligned with the 2026 Claude Code feature set. The main remaining risks are not missing pieces; they are **platform-drift risk**, **relative-path hook brittleness**, **manual live-smoke gaps**, and **unenforced evidence shape at handoff time**. Addressing the P0 and P1 items above should make the agent/skill ecosystem more robust without changing the successful routing architecture already in place.
