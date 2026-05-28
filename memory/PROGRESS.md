@@ -272,3 +272,18 @@ Attempted "IMPLEMENTATION + PR PHASE COMPLETE" for all eligible forensic/source-
 ### Completion
 - Manifest updated: `memory/agent_manifests/audit-20260527-session.json` with `completion_verdict=pass`, `forbidden_actions_performed=false`, `remaining_unprocessed_failures=0`.
 - No production/test code edits, no PRs created, no issue closures, no merges.
+
+## Session: 2026-05-27 (codex full FDD+FSV audit-only pass) — COMPLETE WITH ANOMALIES LOGGED
+
+### Commands executed (evidence)
+- `python3 -m pytest tests/ -q` → **368 passed**
+- `python3 -m pytest tests/ --cov=src --cov-report=term -q` → failed (`--cov` unrecognized; pytest-cov not active)
+- `ruff check src tests` → failed (**27 findings**)
+- `mypy src` → failed (**6 errors**, missing external stubs)
+- `python3 -m radon cc src/ -a` → failed (module not installed)
+- `pip-audit -r requirements.txt` → failed (command not installed)
+
+### FSV/FDD status
+- Pre/post evidence captured for all executed checks.
+- Anomalies synchronized to `memory/FAILURES.md` and policy decision logged in `memory/DECISIONS.md`.
+- No production/test code fixes performed in this pass.
