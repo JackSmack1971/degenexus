@@ -1,15 +1,16 @@
 ---
-description: Start spec-driven development — write a structured specification before writing code
+description: Start DegenExus spec-driven development with explicit source-of-truth, constraints, and verification strategy
 ---
 
-Invoke the agent-skills:spec-driven-development skill.
+Use local project doctrine and `edge-case-audit`; do not reference plugin-only spec skills.
 
-Begin by understanding what the user wants to build. Ask clarifying questions about:
-1. The objective and target users
-2. Core features and acceptance criteria
-3. Tech stack preferences and constraints
-4. Known boundaries (what to always do, ask first about, and never do)
+Workflow:
 
-Then generate a structured spec covering all six core areas: objective, commands, project structure, code style, testing strategy, and boundaries.
+1. Clarify objective, users, scope, non-goals, and risk surfaces.
+2. Identify source-of-truth state for each behavior.
+3. Document commands, project structure, code style, testing strategy, and boundaries.
+4. Include security, prompt-safety, risk-gate, data-integrity, and persistence considerations when relevant.
+5. Include acceptance criteria, FSV evidence expectations, and at least three edge cases.
+6. Confirm with the user before implementation.
 
-Save the spec as SPEC.md in the project root and confirm with the user before proceeding.
+If asked to save the spec, use `SPEC.md` or the user-specified path.

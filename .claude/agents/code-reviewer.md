@@ -17,6 +17,9 @@ model: sonnet
 effort: high
 permissionMode: dontAsk
 maxTurns: 15
+skills:
+  - code-reviewer
+memory: project
 ---
 
 ## Execution Doctrine (NON-NEGOTIABLE)

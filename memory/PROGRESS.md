@@ -541,3 +541,26 @@ Attempted "IMPLEMENTATION + PR PHASE COMPLETE" for all eligible forensic/source-
 
 ### Completion Verdict
 PASS for issue #108 — minimal root-cause fix implemented with post-FSV green; no unrelated source changes.
+
+## Session: 2026-05-28 (codex claude-internals audit remediation) — IMPLEMENTATION PR PREPARED
+
+### Scope
+- Remediated `CLAUDE_CODE_INTERNALS_AUDIT.md` recommendations across Claude Code internals in one PR-sized change.
+- Source-of-truth for this task: files under `.claude/**`, `CLAUDE.md`, `AGENTS.md`, `.gitignore`, and validation output from `.claude/hooks/validate-claude-config.py`.
+
+### Changes
+- Fixed invalid skill frontmatter, removed stray `.claude/skills/test`, and added a reusable Claude config validator.
+- Resolved missing skill references, removed stale `agent-skills:*` command references, deprecated `test-writer`, and made `test-engineer` the single write-capable test role.
+- Added `.claude/settings.json`, Claude config validation hooks, local subagent lifecycle audit logging, `.claude/README.md`, DegenExus domain-specialist agents, and synergy skills.
+- Slimmed `CLAUDE.md` into durable always-loaded doctrine that points long workflows to skills and the internals map.
+
+### Post-FSV
+- `python .claude/hooks/validate-claude-config.py` → claude config validation ok
+- `python -m json.tool .claude/settings.json >/dev/null` → pass
+- `python -m compileall -q .claude/hooks` → pass
+- `python -m compileall -q src/` → pass
+
+### Completion Verdict
+PASS for Claude Code internals remediation pending review; no runtime trading code changed.
+- `python -m pytest tests/ -q` → 396 passed
+- `python3 -m pyflakes src/` → warning: pyflakes module not installed in this environment

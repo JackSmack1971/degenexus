@@ -3,7 +3,7 @@ name: security-auditor
 description: >
   Deep security audit: OWASP Top 10+, CVE sweep, prompt injection surfaces,
   dependency vulnerabilities, and authentication boundaries. Spawn for security
-  reviews, pre-merge audits, or incident triage. Replaces security-reviewer.
+  reviews, pre-merge audits, prompt-safety checks, or incident triage.
 model: sonnet
 tools:
   - Read
@@ -20,8 +20,8 @@ effort: high
 maxTurns: 40
 memory: project
 skills:
-  - owasp-vulnerability-checker
-  - dependency-audit
+  - prompt-safety-review
+  - claude-config-audit
 ---
 
 # Security Auditor — Execution Doctrine
@@ -46,9 +46,8 @@ Execute phases in strict order. Do not skip phases for brevity.
 
 1. Read the target file(s), component, or system boundary passed in the parent prompt.
 2. Identify the technology stack, entry points, trust boundaries, and data flows.
-3. Apply preloaded `owasp-vulnerability-checker` skill — all checks, in declared order.
-4. Apply preloaded `dependency-audit` skill — scan manifest files (package.json,
-   requirements.txt, go.mod, pom.xml, Gemfile, etc.) for known CVEs.
+3. Apply the local `prompt-safety-review` skill for prompt-injection and trust-boundary paths.
+4. Perform dependency audit reasoning from local manifest files such as `requirements.txt`; when shell access is needed, ask the parent to run `pip-audit -r requirements.txt`.
 
 ### Phase 2 — Vulnerability Detection
 
@@ -212,8 +211,7 @@ Do not truncate findings. Do not omit low-severity items.
 4. **No suppression:** Never omit a finding because it might be "known" or "already tracked."
    This audit is authoritative — flag everything, let the team triage.
 5. **OWASP Top 10 as floor:** This is the minimum baseline, not the ceiling.
-6. **CVE sweep mandatory:** Always run `dependency-audit` skill regardless of whether
-   dependency scanning was explicitly requested.
+6. **CVE sweep mandatory:** Always inspect dependency manifests and request `pip-audit -r requirements.txt` evidence from the parent when dependency risk is in scope.
 7. **Never recommend disabling security controls as a fix.** If a control causes breakage,
    recommend fixing the integration, not removing the control.
 
