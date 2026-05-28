@@ -4,6 +4,9 @@ description: >
   Verify DegenExus risk controls, including RiskGate, ExecutionGate,
   RiskDecision expiry, exposure limits, position sizing, stop-loss/take-profit
   ordering, and bypass paths.
+when_to_use: >
+  Use when changes touch RiskGate, ExecutionGate, risk decisions, exposure, sizing,
+  stop-loss/take-profit, order execution, or bypass paths.
 ---
 
 # Risk Control Audit

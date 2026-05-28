@@ -413,3 +413,32 @@ A future pass should be considered complete when all of these are true:
 - Commands share a consistent evidence-first output contract.
 - Claude internals hook scripts have unit coverage or fixture-based tests.
 - `.claude/README.md` distinguishes project-local, bundled, and plugin-provided capabilities.
+
+## Single-PR Implementation Map — 2026-05-28
+
+This section maps every finding above to the concrete project-local change made in the single implementation PR so a downstream reviewer can verify readiness without re-deriving the audit.
+
+| Audit item | Implemented resolution | Review evidence |
+| --- | --- | --- |
+| Fix project agent memory loading | Added or renamed every `memory: project` agent file to `.claude/agent-memory/<agent>/MEMORY.md` and hardened the validator to reject missing or lowercase-only memory files. | `python .claude/hooks/validate-claude-config.py`; inspect `.claude/agent-memory/*/MEMORY.md`. |
+| Split broad specialist prompts into concise prompts plus skills/references | Reduced `security-auditor`, `fdd-investigator`, `code-reviewer`, and `test-engineer` prompts to role/output contracts and moved reusable procedure into `security-review`, `forensic-debug/references/fdd-protocol.md`, `code-reviewer/references/review-template.md`, and `test-regression`. | `wc -l .claude/agents/*.md`; inspect referenced skills. |
+| Add explicit agent-skill synergy contracts | Added `.claude/rules/02-agent-synergy.md` and updated `/audit`, `/review`, `/ship`, `/plan`, README, and release evidence references to use it as the routing source of truth. | Inspect `.claude/rules/02-agent-synergy.md` and command prompts. |
+| Reclassify task workflows as manual-only skills where appropriate | Marked release/config/run/dependency gate skills with `disable-model-invocation: true` and added targeted `when_to_use` metadata for model-invocable skills. | Validator prints model-invocable skill inventory. |
+| Add project run/verify skill | Added `.claude/skills/run-degenexus/SKILL.md` with environment setup, smoke commands, verification commands, yfinance caveat, and no-real-trading guarantee. | Inspect the skill and README skill matrix. |
+| Tighten hook coverage and auditability | Added `ConfigChange`, `SessionStart`, and `FileChanged` hook wiring plus `session-start-reminder.py` and `warn-env-file-changed.py`; preserved subagent lifecycle logging and `.claude/local/` gitignore. | `python -m compileall -q .claude/hooks`; inspect `.claude/settings.json`. |
+| Clarify `ship` invocation model | Updated `/ship` and README to distinguish `claude --agent ship` main-session fan-out from `/ship` parent-session fan-out. Validator warns if `Agent(...)` tools lack this documentation. | Inspect `.claude/commands/ship.md` and `.claude/README.md`. |
+| Add dependency/security audit skill | Added manual-only `.claude/skills/dependency-audit/SKILL.md` and wired `security-auditor`, `/ship`, and README to request or collect dependency evidence. | Inspect dependency-audit skill and security auditor prompt. |
+| Add prompt-flow inventory | Added `.claude/skills/prompt-safety-review/references/prompt-flow-inventory.md` and README guidance for prompt-injection reviews. | Inspect inventory and prompt-safety README section. |
+| Add outcome-oriented slash command outputs | Updated `/audit`, `/review`, `/ship`, `/test`, and `/plan` to require scope, SoT, specialists, exact evidence, severity, edge cases, memory status, and owner. | Inspect command prompts. |
+| Add validator and hook tests | Added `tests/test_claude_config_validator.py` and `tests/test_subagent_event_logger.py` for config semantics and lifecycle logging. | `python -m pytest tests/test_claude_config_validator.py tests/test_subagent_event_logger.py -q`. |
+| Document plugin and bundled-skill boundaries | Added README capability boundaries covering project-local, bundled Claude Code, external/plugin references, and collision policy. Validator enforces README inventory drift. | Inspect `.claude/README.md`; run validator. |
+
+### Single-PR Definition of Done
+
+The Claude internals pass is ready for review when these checks pass in this branch:
+
+```bash
+python .claude/hooks/validate-claude-config.py
+python -m compileall -q .claude/hooks
+python -m pytest tests/test_claude_config_validator.py tests/test_subagent_event_logger.py -q
+```

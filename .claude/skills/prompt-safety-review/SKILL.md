@@ -3,6 +3,9 @@ name: prompt-safety-review
 description: >
   Trace untrusted text into prompts and verify sanitization, prompt-injection
   regression coverage, and preservation of system-level instructions.
+when_to_use: >
+  Use when prompt construction, LLM context, agent summaries, memory, logs, market
+  data text, or other untrusted content can influence model instructions.
 ---
 
 # Prompt Safety Review

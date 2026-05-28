@@ -1,7 +1,7 @@
 # DegenExus Claude Doctrine
 
 > **Single Rule:** A return value is a claim. The Source of Truth is the verdict. Read the verdict.
-> **Status:** Always-loaded project doctrine. Long workflows live in `.claude/skills/`; the internals map lives in `.claude/README.md`.
+> **Status:** Always-loaded project doctrine. Long workflows live in `.claude/skills/`; the internals map lives in `.claude/README.md`; specialist routing lives in `.claude/rules/02-agent-synergy.md`.
 
 ## Mandatory Turn-Start Ritual
 
@@ -43,7 +43,7 @@ DegenExus is a multi-agent AI trading desk simulator. Specialized agents run an 
 - Filesystem state → bytes on disk, not write return codes.
 - Portfolio state → `Portfolio` properties, not cached agent context.
 - Trade state → `TradeStore.get_recent_trades()` or direct DB rows, not in-memory objects.
-- Claude setup → `.claude/README.md`, `.claude/settings.json`, and `python .claude/hooks/validate-claude-config.py`.
+- Claude setup → `.claude/README.md`, `.claude/settings.json`, `.claude/rules/02-agent-synergy.md`, and `python .claude/hooks/validate-claude-config.py`.
 
 ## Non-Negotiable FSV Law
 
@@ -72,6 +72,8 @@ Assume guilt until evidence proves innocence. For persistent failures, collect p
 - Risk gates, portfolio state, prompt sanitization, trade lifecycle, and SQLite persistence require especially strong regression coverage.
 
 ## Specialist Delegation Policy
+
+Use `.claude/rules/02-agent-synergy.md` as the single source of truth for specialist routing and evidence requirements. Quick map:
 
 - Code review → `code-reviewer`.
 - Test authoring and coverage → `test-engineer`; `test-writer` is deprecated and read-only.

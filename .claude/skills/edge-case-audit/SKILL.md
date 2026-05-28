@@ -1,6 +1,9 @@
 ---
 name: edge-case-audit
 description: Activates immediately on any discussion of edge cases, boundary conditions, failure modes, retries, timeouts, race conditions, graceful degradation, post-incident analysis, chaos experiments, or resilience reviews in distributed systems, financial platforms, safety-critical embedded software, databases, or high-availability infrastructure. Transforms isolated boundary-value thinking into expert coupled/temporal/system-level reasoning.
+when_to_use: >
+  Use for edge cases, boundaries, failure modes, retries, timeouts, race conditions,
+  graceful degradation, resilience reviews, and safety-critical trading behavior.
 ---
 
 ### Activation

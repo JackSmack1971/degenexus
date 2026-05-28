@@ -4,6 +4,10 @@ description: >
   Audit the .claude configuration for valid frontmatter, discoverable agents and
   skills, missing skill references, stale slash-command plugin names, broad
   permissions, and hook/settings regressions.
+disable-model-invocation: true
+when_to_use: >
+  Invoke explicitly for `.claude/**`, CLAUDE.md, AGENTS.md, hooks, commands, skills,
+  agents, or agent-memory changes; docs-memory-curator and /audit may preload it.
 ---
 
 # Claude Config Audit

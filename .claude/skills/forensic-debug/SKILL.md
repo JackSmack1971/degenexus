@@ -4,6 +4,10 @@ description: >
   Activate for forensic debugging of software systems when symptoms indicate
   violated invariants, contradictory evidence, unreliable logs, production
   incidents, Heisenbugs, or causal timeline reconstruction.
+when_to_use: >
+  Use for persistent or contradictory failures, production incidents, regression
+  root-cause analysis, violated invariants, Heisenbugs, or causal timeline
+  reconstruction; avoid using for simple one-step bugs.
 ---
 
 # Activation
