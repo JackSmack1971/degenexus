@@ -26,7 +26,7 @@ Canonical `/ship` workflow. Use this skill instead of duplicating merge-gate pro
 5. Run `pip-audit -r requirements.txt` when dependency manifests changed or release policy requires it.
 6. Confirm no `.env*`, `secrets/**`, `*.pem`, `*.key`, `*.db`, `*.db-wal`, or `*.db-shm` files were added.
 7. Route specialists from `.claude/rules/synergy-contract.yml`; always include `code-reviewer`, `security-auditor`, and `test-engineer` for merge readiness, then add domain owners by changed-file surface.
-8. Reject any specialist output missing `verdict`, `scope_reviewed`, `source_of_truth`, or `findings` unless the specialist explicitly marks `NEEDS_INFO` with a remediation owner.
+8. Collect each specialist fenced `yaml` evidence block and run `python .claude/hooks/validate-evidence-payload.py <payload>` when shell execution is available. Report schema validation as `PASS`, `WARNING`, or `FAIL`. Reject any specialist output missing `verdict`, `scope_reviewed`, `source_of_truth`, or `findings` unless the specialist explicitly marks `NEEDS_INFO` with a remediation owner.
 9. Require live smoke evidence from `references/live-smoke-template.md` only when `.claude/**`, `CLAUDE.md`, or `AGENTS.md` changed; otherwise note `NOT_RUN` with reason.
 
 ## Final Output

@@ -1,18 +1,13 @@
 ---
-description: Implement the next DegenExus task incrementally with tests, FSV evidence, and verification
+description: Compatibility shim for the canonical DegenExus build workflow skill
 ---
 
-Use the local `test-engineer` workflow plus `edge-case-audit` and `fsv-verify` skills. Do not reference plugin-only skill names unless a plugin dependency is documented and verified.
+Use `.claude/skills/build/SKILL.md` as the canonical workflow.
 
-For each task:
+Required references for this slash workflow:
 
-1. Read acceptance criteria and identify the source of truth.
-2. Load relevant code, tests, and project conventions.
-3. Write a failing Prove-It or feature test when behavior changes.
-4. Implement the minimum change to satisfy the test.
-5. Reread the source of truth and compare the expected delta.
-6. Run targeted tests, then broader tests when feasible.
-7. Run `python3 -m compileall -q src/` for runtime changes.
-8. Commit with a scoped conventional-style subject when the change is ready.
+- `.claude/skills/build/SKILL.md`
+- `.claude/rules/synergy-contract.yml`
+- `.claude/rules/evidence-schema.yml`
 
-If verification fails repeatedly, stop and use `fdd-investigator` for read-only root-cause analysis before more edits.
+Do not duplicate workflow prose here; load the skill and emit schema-checkable build evidence.

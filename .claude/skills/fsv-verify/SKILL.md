@@ -1,6 +1,6 @@
 ---
 name: fsv-verify
-description: Apply PRE-ACT-POST-DIFF-HALT source-of-truth verification to any mutation or claimed state change.
+description: Apply slim PRE-ACT-POST-DIFF-HALT source-of-truth checks after mutations or claimed state changes.
 when_to_use: >
   Use whenever files, database rows, portfolio state, risk decisions, prompts,
   tests, or configuration are changed or when a tool reports success without an
@@ -29,7 +29,7 @@ A return value is a claim. The source of truth is the verdict.
 
 ## Escalation
 
-Use manual `fsv-verify-deep` for high-risk security, risk-control, SQLite, prompt-safety, context-compaction, or disputed-evidence situations.
+This skill is intentionally slim and model-invocable. Use manual `fsv-verify-deep` for high-risk security, risk-control, SQLite, prompt-safety, context-compaction, or disputed-evidence situations.
 
 ## Output
 

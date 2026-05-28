@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-28
 **Scope:** `CLAUDE.md`, `.claude/README.md`, `.claude/settings.json`, `.claude/agents/`, `.claude/skills/`, `.claude/commands/`, `.claude/rules/`, `.claude/imports/`, `.claude/output-styles/`, `.claude/hooks/`, and `.claude/agent-memory/`.
-**Deliverable constraint:** Recommendations only. This refresh intentionally modifies no Claude Code internals other than this audit file.
+**Implementation status:** This PR implements the full action register from this audit and updates the Claude Code internals in-place.
 
 ## 1. Research Baseline
 
@@ -113,10 +113,10 @@ Active specialist set:
 
 ### 4.3 Skills and commands
 
-- Workflow skills with command-shim coverage: `audit`, `review`, `ship`, `test`.
+- Workflow skills with command-shim coverage: `audit`, `build`, `code-simplify`, `plan`, `review`, `ship`, `spec`, `test`.
 - Model-invocable specialist skills: `code-reviewer`, `edge-case-audit`, `forensic-debug`, `fsv-verify`, `prompt-safety-review`, `risk-control-audit`, `security-review`, `sqlite-sot-verify`, `test-regression`.
-- Manual-only or preloaded support skills: `claude-config-audit`, `dependency-audit`, `fsv-verify-deep`, `release-evidence-pack`, `run-degenexus`.
-- Remaining direct commands: `/build`, `/code-simplify`, `/plan`, `/spec`.
+- Manual-only or preloaded support skills: `claude-config-audit`, `dependency-audit`, `fsv-verify-deep`, `release-evidence-pack`, `run-degenexus`, plus manual workflow skills listed above.
+- Remaining direct commands: none; every user-facing command is now a same-name skill shim.
 
 ### 4.4 Hooks and safety controls
 
@@ -129,7 +129,10 @@ Configured hooks:
 | `SubagentStart` / `SubagentStop` | `log-subagent-event.py` | Record local JSONL subagent lifecycle events. |
 | `ConfigChange` | `validate-claude-config.py` | Validate on project settings and skill config changes. |
 | `SessionStart` | `session-start-reminder.py` | Print project routing reminder. |
+| `InstructionsLoaded` | `log-instructions-loaded.py` | Append redacted loaded-instruction event summaries under `.claude/local/`. |
+| `CwdChanged` | `cwd-changed-reminder.py` | Remind sessions that project hooks are rooted through `CLAUDE_PROJECT_DIR`. |
 | `FileChanged` | `warn-env-file-changed.py` | Warn when `.env*`-style files change. |
+| Manual `/ship` helper | `validate-evidence-payload.py` | Validate specialist/release evidence against `.claude/rules/evidence-schema.yml`. |
 
 ## 5. Priority Action Register
 
@@ -295,7 +298,21 @@ Configured hooks:
 - Adding a skill without updating README fails validation or prints an exact patch block.
 - The generated inventory includes invocation mode, owner agents, and memory status.
 
-## 6. Suggested Implementation Sequence
+## 6. Implementation Map for This PR
+
+| Audit finding | Resolution in this PR | Acceptance evidence |
+| --- | --- | --- |
+| P0 — keep validator aligned with current hook events | Expanded `ALLOWED_HOOK_EVENTS`, added matcher/decision metadata maps, documented `HOOK_EVENT_SOURCE_DATE`, and added `--self-test` coverage for `InstructionsLoaded`, `PreCompact`, and `PostToolUseFailure`. | `python .claude/hooks/validate-claude-config.py --self-test` |
+| P0 — make hook commands CWD-independent | Rewrote `.claude/settings.json` hook commands to use `$CLAUDE_PROJECT_DIR/.claude/hooks/*.py`; validator still resolves `ROOT` from script location. | `cd src && python ../.claude/hooks/validate-claude-config.py` |
+| P1 — add instruction/CWD observability | Added `log-instructions-loaded.py`, `cwd-changed-reminder.py`, `InstructionsLoaded`, and `CwdChanged`; `.claude/local/` remains gitignored. | `python -m compileall -q .claude/hooks` |
+| P1 — canonicalize direct commands | Added canonical `build`, `code-simplify`, `plan`, and `spec` skills and reduced matching commands to shims that cite the skill, synergy contract, and evidence schema. | `python .claude/hooks/validate-claude-config.py` |
+| P1 — strengthen live smoke evidence | Expanded the live-smoke template with PASS/WARNING/NOT_RUN fields for `/context`, `/memory`, `/skills`, `/agents`, `/hooks`, `/permissions`, `/doctor`, and `/status`, plus generated expected-object inventory. | `.claude/skills/claude-config-audit/references/live-smoke-template.md` |
+| P2 — validate specialist evidence payloads | Added `validate-evidence-payload.py`; updated `/ship` and `release-evidence-pack` to collect fenced YAML evidence and report validator status. | `python .claude/hooks/validate-evidence-payload.py /tmp/evidence-ok.yml` |
+| P2 — enforce read-only specialists | Validator now rejects write tools outside `KNOWN_WRITE_CAPABLE_AGENTS`; read-only agents explicitly disallow `Write`, `Edit`, and `MultiEdit`; README has a write-capable exception register. | `python .claude/hooks/validate-claude-config.py` |
+| P2 — tune broad model-invocable skills | Narrowed `edge-case-audit`, made `fsv-verify` description explicitly slim, retained `fsv-verify-deep` as manual-only, and added README context-cost guidance. | `/skills` live smoke when interactive; static inventory lists invocation modes. |
+| P2 — generated inventory check | Added `--print-inventory`, generated README inventory markers, and validator drift detection for the generated block. | `python .claude/hooks/validate-claude-config.py --print-inventory` |
+
+## 7. Suggested Implementation Sequence
 
 1. **Validator platform refresh:** Update hook event allow-list and matcher metadata first, because it unblocks safe use of newer hooks.
 2. **Hook path hardening:** Switch hook commands to `CLAUDE_PROJECT_DIR` and smoke-test from a nested directory.
@@ -304,7 +321,7 @@ Configured hooks:
 5. **Evidence enforcement:** Add a payload validator and teach `/ship` to require schema-valid specialist blocks.
 6. **README inventory generation:** Automate drift checks after the final structure settles.
 
-## 7. Verification Checklist for the Next Internals PR
+## 8. Verification Checklist for the Next Internals PR
 
 Use this checklist when implementing any of the recommendations above:
 
@@ -339,6 +356,6 @@ Use this checklist when implementing any of the recommendations above:
 - [ ] `/status` shows expected settings sources.
 ```
 
-## 8. Bottom Line
+## 9. Bottom Line
 
 The Claude Code internals are currently coherent, validated, and substantially aligned with the 2026 Claude Code feature set. The main remaining risks are not missing pieces; they are **platform-drift risk**, **relative-path hook brittleness**, **manual live-smoke gaps**, and **unenforced evidence shape at handoff time**. Addressing the P0 and P1 items above should make the agent/skill ecosystem more robust without changing the successful routing architecture already in place.

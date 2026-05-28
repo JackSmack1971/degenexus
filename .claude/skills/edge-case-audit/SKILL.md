@@ -1,6 +1,6 @@
 ---
 name: edge-case-audit
-description: Analyze boundary conditions, coupled failure modes, resilience risks, and safety-critical trading edge cases.
+description: Analyze safety-critical boundaries, coupled failure modes, resilience risks, and trading edge cases.
 when_to_use: >
   Use for edge cases, boundaries, failure modes, retries, timeouts, race conditions,
   graceful degradation, resilience reviews, and safety-critical trading behavior.

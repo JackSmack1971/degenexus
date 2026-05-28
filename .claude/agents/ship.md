@@ -9,6 +9,10 @@ tools:
   - Read
   - Glob
   - Bash
+disallowedTools:
+  - Write
+  - Edit
+  - MultiEdit
 model: sonnet
 effort: high
 maxTurns: 20

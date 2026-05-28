@@ -12,6 +12,7 @@ tools:
 disallowedTools:
   - Write
   - Edit
+  - MultiEdit
   - Bash
   - WebFetch
   - Agent

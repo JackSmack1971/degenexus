@@ -3,9 +3,12 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
+import shlex
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -23,23 +26,59 @@ SYNERGY_CONTRACT_PATH = CLAUDE_DIR / "rules" / "synergy-contract.yml"
 EVIDENCE_SCHEMA_PATH = CLAUDE_DIR / "rules" / "evidence-schema.yml"
 SETTINGS_WAIVERS_PATH = CLAUDE_DIR / "rules" / "settings-policy-waivers.yml"
 
+# Source: https://code.claude.com/docs/en/hooks, reviewed 2026-05-28.
+HOOK_EVENT_SOURCE_DATE = "2026-05-28"
 ALLOWED_HOOK_EVENTS = {
+    "Setup",
+    "UserPromptSubmit",
+    "UserPromptExpansion",
     "PreToolUse",
     "PostToolUse",
+    "PostToolUseFailure",
+    "PostToolBatch",
+    "PermissionRequest",
+    "PermissionDenied",
     "Notification",
     "Stop",
     "SubagentStart",
     "SubagentStop",
     "SubagentNotification",
-    "UserPromptSubmit",
     "SessionStart",
     "SessionEnd",
     "ConfigChange",
     "FileChanged",
+    "TaskCreated",
     "TaskCompleted",
+    "TeammateIdle",
+    "PreCompact",
+    "PostCompact",
+    "WorktreeCreate",
+    "WorktreeRemove",
+    "InstructionsLoaded",
+    "CwdChanged",
+    "MessageDisplay",
 }
-MATCHER_IGNORED_EVENTS = {"Notification", "Stop", "UserPromptSubmit", "SessionStart", "SessionEnd", "TaskCompleted"}
-MATCHER_EXPECTED_EVENTS = {"PreToolUse", "PostToolUse", "ConfigChange", "FileChanged"}
+HOOK_MATCHER_ALLOWED = {
+    "PreToolUse",
+    "PostToolUse",
+    "PostToolUseFailure",
+    "ConfigChange",
+    "FileChanged",
+    "SubagentStart",
+    "SubagentStop",
+    "SubagentNotification",
+}
+HOOK_MATCHER_EXPECTED = {"PreToolUse", "PostToolUse", "PostToolUseFailure", "ConfigChange", "FileChanged"}
+HOOK_MATCHER_IGNORED = ALLOWED_HOOK_EVENTS - HOOK_MATCHER_ALLOWED
+HOOK_DECISION_CAPABLE = {
+    "UserPromptSubmit",
+    "PreToolUse",
+    "PermissionRequest",
+    "PermissionDenied",
+    "PostToolUseFailure",
+    "Stop",
+    "SubagentStop",
+}
 ALLOWED_SETTINGS_KEYS = {
     "permissions",
     "hooks",
@@ -73,7 +112,10 @@ ALLOWED_SKILL_FIELDS = {
 }
 FORBIDDEN_PERMISSION_MODES = {"bypassPermissions"}
 KNOWN_WRITE_CAPABLE_AGENTS = {"test-engineer"}
-WORKFLOW_SKILL_SHIMS = {"ship", "audit", "review", "test"}
+WRITE_TOOLS = {"Write", "Edit", "MultiEdit"}
+INVENTORY_START = "<!-- BEGIN GENERATED CLAUDE INVENTORY -->"
+INVENTORY_END = "<!-- END GENERATED CLAUDE INVENTORY -->"
+WORKFLOW_SKILL_SHIMS = {"ship", "audit", "review", "test", "build", "code-simplify", "plan", "spec"}
 MODEL_INVOCABLE_DESCRIPTION_LIMIT = 300
 PROTECTED_DENY_PATHS = (
     "./.env",
@@ -181,7 +223,23 @@ def validate_agent_skills_and_memory(root: Path, skills: set[str], errors: list[
             errors.append(f"forbidden permissionMode: {repo_path(agent, root)} -> {permission_mode}")
         if permission_mode == "acceptEdits" and name not in KNOWN_WRITE_CAPABLE_AGENTS:
             warnings.append(f"acceptEdits outside known write-capable agents: {repo_path(agent, root)}")
-        tools = "\n".join(str(tool) for tool in fm.get("tools", []) or [])
+        raw_tools = [str(tool) for tool in fm.get("tools", []) or []]
+        raw_disallowed = [str(tool) for tool in fm.get("disallowedTools", []) or []]
+        granted_write_tools = {tool for tool in raw_tools if tool in WRITE_TOOLS}
+        disallowed_write_tools = {tool for tool in raw_disallowed if tool in WRITE_TOOLS}
+        if name not in KNOWN_WRITE_CAPABLE_AGENTS:
+            if granted_write_tools:
+                errors.append(
+                    f"read-only agent grants write tools: {repo_path(agent, root)} -> {sorted(granted_write_tools)}"
+                )
+            missing_disallowed = WRITE_TOOLS - disallowed_write_tools
+            if missing_disallowed and name != "ship":
+                warnings.append(
+                    f"read-only agent should explicitly disallow write tools: {repo_path(agent, root)} -> {sorted(missing_disallowed)}"
+                )
+        elif permission_mode != "acceptEdits":
+            errors.append(f"write-capable agent must use permissionMode acceptEdits: {repo_path(agent, root)}")
+        tools = "\n".join(raw_tools)
         if "Agent(" in tools:
             readme_path = root / ".claude" / "README.md"
             commands_dir = root / ".claude" / "commands"
@@ -218,12 +276,24 @@ def validate_commands(root: Path, skills: set[str], errors: list[str], warnings:
             warnings.append(f"slash command name collides with skill name: {repo_path(command, root)} -> {command.stem}")
 
 
-def has_hook_command(settings: dict[str, Any], event: str, command: str) -> bool:
+def referenced_hook_script(command: str) -> str | None:
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        return None
+    for part in parts[1:]:
+        if ".claude/hooks/" in part and part.endswith(".py"):
+            return Path(part.replace("$CLAUDE_PROJECT_DIR/", "")).name
+    return None
+
+
+def has_hook_script(settings: dict[str, Any], event: str, script_name: str) -> bool:
     for entry in settings.get("hooks", {}).get(event, []) or []:
         if not isinstance(entry, dict):
             continue
         for hook in entry.get("hooks", []) or []:
-            if isinstance(hook, dict) and hook.get("command") == command:
+            command = hook.get("command") if isinstance(hook, dict) else None
+            if isinstance(command, str) and referenced_hook_script(command) == script_name:
                 return True
     return False
 
@@ -261,7 +331,7 @@ def validate_settings(root: Path, errors: list[str], warnings: list[str]) -> Non
     if not isinstance(hooks, dict):
         errors.append("settings hooks must be a mapping")
         return
-    if strict_protected_policy and not has_hook_command(settings, "PreToolUse", "python .claude/hooks/protect-sensitive-files.py"):
+    if strict_protected_policy and not has_hook_script(settings, "PreToolUse", "protect-sensitive-files.py"):
         errors.append("missing PreToolUse protected-file hook registration")
     waivers_path = root / ".claude" / "rules" / "settings-policy-waivers.yml"
     if waivers_path.exists():
@@ -277,16 +347,22 @@ def validate_settings(root: Path, errors: list[str], warnings: list[str]) -> Non
             continue
         for index, entry in enumerate(entries):
             matcher = entry.get("matcher") if isinstance(entry, dict) else None
-            if event in MATCHER_IGNORED_EVENTS and matcher:
+            if event in HOOK_MATCHER_IGNORED and matcher:
                 warnings.append(f"matcher is ignored for {event}: entry {index}")
-            if event in MATCHER_EXPECTED_EVENTS and not matcher:
+            if event in HOOK_MATCHER_EXPECTED and not matcher:
                 warnings.append(f"matcher omitted for policy-sensitive event {event}: entry {index}")
             for hook in entry.get("hooks", []) if isinstance(entry, dict) else []:
                 command = hook.get("command") if isinstance(hook, dict) else None
-                if command and command.startswith("python .claude/hooks/"):
-                    script = root / command.split("python ", 1)[1].split()[0]
-                    if not script.exists():
-                        errors.append(f"hook command references missing script: {command}")
+                if command:
+                    script_name = referenced_hook_script(str(command))
+                    if script_name:
+                        script = root / ".claude" / "hooks" / script_name
+                        if not script.exists():
+                            errors.append(f"hook command references missing script: {command}")
+                        if str(command).startswith("python .claude/hooks/"):
+                            warnings.append(
+                                f"hook command should use CLAUDE_PROJECT_DIR for CWD safety: {command}"
+                            )
 
 
 def validate_synergy_contract(
@@ -344,6 +420,9 @@ def validate_evidence_schema(root: Path, errors: list[str]) -> None:
     release_skill = root / ".claude" / "skills" / "release-evidence-pack" / "SKILL.md"
     if release_skill.exists() and ".claude/rules/evidence-schema.yml" not in release_skill.read_text(errors="replace"):
         errors.append("release-evidence-pack must reference evidence schema")
+    evidence_validator = root / ".claude" / "hooks" / "validate-evidence-payload.py"
+    if not evidence_validator.exists():
+        errors.append("missing evidence payload validator: .claude/hooks/validate-evidence-payload.py")
 
 
 def validate_memory_convention(root: Path, warnings: list[str]) -> None:
@@ -351,6 +430,72 @@ def validate_memory_convention(root: Path, warnings: list[str]) -> None:
         text = memory_file.read_text(errors="replace")
         if len(text.splitlines()) > 200 and "## Current operating assumptions" not in text:
             warnings.append(f"long memory lacks top summary section: {repo_path(memory_file, root)}")
+
+
+def command_invocation_mode(skill_path: Path) -> str:
+    fm = frontmatter(skill_path.read_text(errors="replace"))
+    if fm.get("disable-model-invocation"):
+        return "Manual-only"
+    return "Model-invocable"
+
+
+def generate_inventory(root: Path = ROOT) -> str:
+    agents_dir = root / ".claude" / "agents"
+    skills_dir = root / ".claude" / "skills"
+    commands_dir = root / ".claude" / "commands"
+    hooks_dir = root / ".claude" / "hooks"
+    memory_dir = root / ".claude" / "agent-memory"
+    settings = json.loads((root / ".claude" / "settings.json").read_text()) if (root / ".claude" / "settings.json").exists() else {}
+
+    lines = [INVENTORY_START, "", "### Generated Claude Inventory", ""]
+    lines += ["#### Agents", "", "| Agent | Permission mode | Write-capable | Preloaded skills | Memory |", "| --- | --- | --- | --- | --- |"]
+    for path in sorted(agents_dir.glob("*.md")):
+        fm = frontmatter(path.read_text(errors="replace"))
+        name = str(fm.get("name") or path.stem)
+        tools = {str(tool) for tool in fm.get("tools", []) or []}
+        write_capable = "Yes" if tools & WRITE_TOOLS else "No"
+        skills = ", ".join(f"`{skill}`" for skill in fm.get("skills", []) or []) or "—"
+        memory = "Project" if fm.get("memory") == "project" else "None"
+        lines.append(f"| `{name}` | `{fm.get('permissionMode', '—')}` | {write_capable} | {skills} | {memory} |")
+
+    lines += ["", "#### Skills", "", "| Skill | Invocation mode | Owner agents |", "| --- | --- | --- |"]
+    agent_owners: dict[str, list[str]] = {}
+    for path in sorted(agents_dir.glob("*.md")):
+        fm = frontmatter(path.read_text(errors="replace"))
+        name = str(fm.get("name") or path.stem)
+        for skill in fm.get("skills", []) or []:
+            agent_owners.setdefault(str(skill), []).append(name)
+    for path in sorted(skills_dir.glob("*/SKILL.md")):
+        skill = path.parent.name
+        mode = command_invocation_mode(path)
+        owners = ", ".join(f"`{owner}`" for owner in sorted(agent_owners.get(skill, []))) or "parent session"
+        lines.append(f"| `{skill}` | {mode} | {owners} |")
+
+    lines += ["", "#### Commands", "", "| Command | Canonical source |", "| --- | --- |"]
+    for path in sorted(commands_dir.glob("*.md")):
+        skill_path = skills_dir / path.stem / "SKILL.md"
+        source = f"`.claude/skills/{path.stem}/SKILL.md`" if skill_path.exists() else "Intentional command-only"
+        lines.append(f"| `/{path.stem}` | {source} |")
+
+    event_map: dict[str, list[str]] = {}
+    for event, entries in (settings.get("hooks", {}) or {}).items():
+        for entry in entries or []:
+            for hook in entry.get("hooks", []) if isinstance(entry, dict) else []:
+                command = hook.get("command") if isinstance(hook, dict) else None
+                if isinstance(command, str):
+                    script_name = referenced_hook_script(command)
+                    if script_name:
+                        event_map.setdefault(script_name, []).append(event)
+    lines += ["", "#### Hooks", "", "| Hook script | Events |", "| --- | --- |"]
+    for path in sorted(hooks_dir.glob("*.py")):
+        events = ", ".join(f"`{event}`" for event in sorted(set(event_map.get(path.name, [])))) or "Not registered"
+        lines.append(f"| `{path.name}` | {events} |")
+
+    lines += ["", "#### Memories", "", "| Agent memory | Status |", "| --- | --- |"]
+    for path in sorted(memory_dir.glob("*/MEMORY.md")):
+        lines.append(f"| `{path.parent.name}` | Present |")
+    lines += ["", INVENTORY_END]
+    return "\n".join(lines)
 
 
 def validate_readme_inventory(root: Path, skills: set[str], errors: list[str]) -> None:
@@ -371,6 +516,36 @@ def validate_readme_inventory(root: Path, skills: set[str], errors: list[str]) -
     for item in sorted(set(inventories)):
         if item not in readme:
             errors.append(f"README inventory missing: {item}")
+    expected = generate_inventory(root)
+    if INVENTORY_START not in readme or INVENTORY_END not in readme:
+        errors.append("README missing generated Claude inventory block")
+        return
+    actual = readme.split(INVENTORY_START, 1)[1].split(INVENTORY_END, 1)[0]
+    actual_block = f"{INVENTORY_START}{actual}{INVENTORY_END}"
+    if actual_block != expected:
+        errors.append("README generated Claude inventory block is stale; run validate-claude-config.py --print-inventory")
+
+
+def run_self_test() -> tuple[list[str], list[str]]:
+    errors: list[str] = []
+    warnings: list[str] = []
+    scratch = {
+        "permissions": {"deny": ["Read(.env*)", "Bash(cat .env*)", "Bash(rm -rf *)"]},
+        "hooks": {
+            "InstructionsLoaded": [{"hooks": [{"type": "command", "command": 'python "$CLAUDE_PROJECT_DIR/.claude/hooks/log-instructions-loaded.py"'}]}],
+            "PreCompact": [{"hooks": [{"type": "command", "command": 'python "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start-reminder.py"'}]}],
+            "PostToolUseFailure": [{"matcher": "Write|Edit|MultiEdit", "hooks": [{"type": "command", "command": 'python "$CLAUDE_PROJECT_DIR/.claude/hooks/validate-claude-config.py"'}]}],
+        }
+    }
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / ".claude" / "hooks").mkdir(parents=True)
+        (root / ".claude" / "rules").mkdir(parents=True)
+        for script in ("log-instructions-loaded.py", "session-start-reminder.py", "validate-claude-config.py"):
+            (root / ".claude" / "hooks" / script).write_text("#!/usr/bin/env python3\n")
+        (root / ".claude" / "settings.json").write_text(json.dumps(scratch))
+        validate_settings(root, errors, warnings)
+    return errors, warnings
 
 
 def validate(root: Path = ROOT) -> tuple[list[str], list[str]]:
@@ -390,6 +565,27 @@ def validate(root: Path = ROOT) -> tuple[list[str], list[str]]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Validate Claude Code project configuration.")
+    parser.add_argument("--print-inventory", action="store_true", help="print generated Markdown inventory block")
+    parser.add_argument("--self-test", action="store_true", help="validate representative newer hook events")
+    args = parser.parse_args()
+    if args.print_inventory:
+        print(generate_inventory(ROOT))
+        return 0
+    if args.self_test:
+        errors, warnings = run_self_test()
+        if errors:
+            print("claude config validator self-test failed:")
+            for error in errors:
+                print(f"- {error}")
+            return 1
+        print("claude config validator self-test ok")
+        if warnings:
+            print("warnings:")
+            for warning in warnings:
+                print(f"- {warning}")
+        return 0
+
     errors, warnings = validate(ROOT)
     if errors:
         print("claude config validation failed:")
