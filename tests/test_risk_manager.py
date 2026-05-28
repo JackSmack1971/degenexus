@@ -161,3 +161,96 @@ class TestUnknownDecisionType:
         result = agent._contextual_assess(valid_proposal, tmpl, 0, 0.72, "")
         # unknown type → approved=True → APPROVED fallback
         assert result.decision_type == RiskDecisionType.APPROVED
+
+
+# ── assess_contextual_risk() entry-point (lines 59-60) ───────────────────────
+
+class TestAssessContextualRisk:
+
+    def test_delegates_to_contextual_assess_approved(self, valid_proposal):
+        """Lines 59-60: assess_contextual_risk() calls build_approval_template + _contextual_assess."""
+        agent = _make_agent()
+        agent.call_llm = lambda sys, usr: {
+            "approved": True,
+            "decision_type": "APPROVED",
+            "risk_score": 3.0,
+            "risk_reasoning": "solid setup",
+            "conditions": [],
+        }
+        result = agent.assess_contextual_risk(
+            valid_proposal,
+            consecutive_losses=0,
+            signal_confidence=0.72,
+        )
+        assert result.approved is True
+        assert result.risk_score == pytest.approx(3.0)
+        assert result.decision_type == RiskDecisionType.APPROVED
+
+    def test_delegates_with_open_positions_summary(self, valid_proposal):
+        """Lines 59-60: open_positions_summary passes through to _contextual_assess."""
+        agent = _make_agent()
+        agent.call_llm = lambda sys, usr: {
+            "approved": False,
+            "decision_type": "REJECTED_CONTEXTUAL",
+            "risk_score": 7.0,
+            "risk_reasoning": "correlated exposure",
+            "conditions": [],
+        }
+        result = agent.assess_contextual_risk(
+            valid_proposal,
+            consecutive_losses=2,
+            signal_confidence=0.60,
+            open_positions_summary="AAPL LONG 10 shares",
+        )
+        assert result.approved is False
+        assert result.risk_score == pytest.approx(7.0)
+
+
+# ── _contextual_assess() parse-failure path (lines 125-127) ──────────────────
+
+class TestContextualAssessParseFailure:
+
+    def test_non_numeric_risk_score_triggers_fallback(self, valid_proposal):
+        """Lines 125-127: float('not-a-number') raises ValueError → _fallback_decision."""
+        agent = _make_agent()
+        tmpl = _template(valid_proposal)
+        agent.call_llm = lambda sys, usr: {
+            "approved": True,
+            "decision_type": "APPROVED",
+            "risk_score": "not-a-number",
+            "risk_reasoning": "ok",
+            "conditions": [],
+        }
+        result = agent._contextual_assess(valid_proposal, tmpl, 0, 0.72, "")
+        assert result.approved is False
+        assert result.risk_score == pytest.approx(8.0)
+        assert "[FALLBACK]" in result.risk_reasoning
+
+    def test_none_risk_score_triggers_fallback(self, valid_proposal):
+        """Lines 125-127: float(None) raises TypeError → _fallback_decision."""
+        agent = _make_agent()
+        tmpl = _template(valid_proposal)
+        agent.call_llm = lambda sys, usr: {
+            "approved": True,
+            "decision_type": "APPROVED",
+            "risk_score": None,
+            "risk_reasoning": "ok",
+            "conditions": [],
+        }
+        result = agent._contextual_assess(valid_proposal, tmpl, 0, 0.72, "")
+        assert result.approved is False
+        assert result.risk_score == pytest.approx(8.0)
+
+    def test_malformed_decision_type_dict_triggers_fallback(self, valid_proposal):
+        """Lines 125-127: non-string decision_type causes RiskDecision construction to fail."""
+        agent = _make_agent()
+        tmpl = _template(valid_proposal)
+        # Provide a list for risk_score to force TypeError in float()
+        agent.call_llm = lambda sys, usr: {
+            "approved": True,
+            "risk_score": [1, 2, 3],
+            "conditions": [],
+        }
+        result = agent._contextual_assess(valid_proposal, tmpl, 0, 0.72, "")
+        assert result.approved is False
+        assert "[FALLBACK]" in result.risk_reasoning
