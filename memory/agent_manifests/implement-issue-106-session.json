@@ -1,0 +1,18 @@
+{
+  "session": "claude/degenexus-forensic-impl-eW5PT",
+  "date": "2026-05-28",
+  "issue": 106,
+  "branch": "codex/issue-106",
+  "pre_fix_head": "e572bc6",
+  "root_cause": "langchain>=0.3.0 and langchain-anthropic>=0.3.0 were in requirements.txt but zero imports found across all src/ files",
+  "fix_summary": "Removed 2 unused dependency lines from requirements.txt",
+  "files_changed": ["requirements.txt"],
+  "pre_state": "langchain>=0.3.0 and langchain-anthropic>=0.3.0 present in requirements.txt",
+  "post_state": "both lines removed; grep -rn 'import langchain' src/ returns no matches",
+  "tests_before": 408,
+  "tests_after": 408,
+  "ruff": "CLEAN",
+  "pyflakes": "CLEAN",
+  "forbidden_actions_performed": false,
+  "completion_verdict": "pass"
+}
