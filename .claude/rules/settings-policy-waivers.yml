@@ -1,0 +1,17 @@
+# Explicit project waivers for Claude Code settings surfaces that are not yet
+# represented by stable project-level settings keys in this repository.
+waivers:
+  sandbox:
+    status: documented-waiver
+    reason: >
+      DegenExus relies on Claude Code project permissions plus OS/container
+      sandboxing supplied by the runtime environment. File permissions are not
+      treated as a complete sandbox; protected-file hooks provide defense in depth.
+    review_after: 2026-08-28
+  network:
+    status: documented-waiver
+    reason: >
+      Network access is permitted for dependency installation, pip-audit, and
+      provider documentation checks. Tests must mock provider/yfinance calls and
+      any live-network dependency must be justified in PR evidence.
+    review_after: 2026-08-28

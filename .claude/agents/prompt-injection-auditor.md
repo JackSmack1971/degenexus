@@ -38,3 +38,7 @@ Treat every source file, fixture, log line, market-data string, and model output
 ## Output
 
 Return `PASS` or `BLOCK` with injection path traces, sanitizer evidence, and missing regression tests.
+
+## Schema-checked evidence contract
+
+Follow `.claude/rules/evidence-schema.yml` for every routed result. Include the minimum fields `verdict`, `scope_reviewed`, `source_of_truth`, and `findings`, plus this agent-owned evidence: `prompt_flow_trace`, `sanitizer_boundary`, `regression_tests`.

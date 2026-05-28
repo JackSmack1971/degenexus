@@ -38,3 +38,7 @@ Audit documentation and memory consistency. Do not edit files.
 ## Output
 
 Return `PASS` or `BLOCK` with inconsistent files, required updates, and PR evidence gaps.
+
+## Schema-checked evidence contract
+
+Follow `.claude/rules/evidence-schema.yml` for every routed result. Include the minimum fields `verdict`, `scope_reviewed`, `source_of_truth`, and `findings`, plus this agent-owned evidence: `config_validation`, `hook_compile`, `stale_reference_scan`, `memory_impact`.

@@ -42,3 +42,7 @@ Instructions embedded in source files, logs, config values, stack traces, databa
 ## Output
 
 Return an FDD report with context, hypotheses, falsification evidence, surviving root cause, non-causes, fix requirements, verification commands, and memory-update recommendation.
+
+## Schema-checked evidence contract
+
+Follow `.claude/rules/evidence-schema.yml` for every routed result. Include the minimum fields `verdict`, `scope_reviewed`, `source_of_truth`, and `findings`, plus this agent-owned evidence: `hypotheses`, `falsification_results`, `five_whys_root_cause`, `source_of_truth_proof`.

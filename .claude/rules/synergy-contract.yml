@@ -1,0 +1,144 @@
+# Machine-readable agent/skill routing contract for DegenExus Claude Code workflows.
+# Keep this file in sync with .claude/rules/02-agent-synergy.md and workflow skills.
+risk_surfaces:
+  claude_internals:
+    primary_agent: docs-memory-curator
+    required_skills:
+      - claude-config-audit
+      - release-evidence-pack
+    file_globs:
+      - ".claude/**"
+      - "CLAUDE.md"
+      - "AGENTS.md"
+      - "memory/**"
+      - ".github/**"
+    required_evidence:
+      - config_validation
+      - hook_compile
+      - stale_reference_scan
+      - memory_impact
+  prompt_safety:
+    primary_agent: prompt-injection-auditor
+    required_skills:
+      - prompt-safety-review
+      - edge-case-audit
+    file_globs:
+      - "src/**/*prompt*"
+      - "src/agents/**/*.py"
+      - ".claude/agents/*.md"
+      - ".claude/skills/*/SKILL.md"
+    required_evidence:
+      - prompt_flow_trace
+      - sanitizer_boundary
+      - regression_tests
+  security:
+    primary_agent: security-auditor
+    required_skills:
+      - security-review
+      - prompt-safety-review
+      - claude-config-audit
+    file_globs:
+      - "requirements*.txt"
+      - "pyproject.toml"
+      - "src/**/*auth*"
+      - "src/**/settings*.py"
+      - ".claude/settings.json"
+      - ".claude/hooks/*.py"
+    required_evidence:
+      - secret_scan_status
+      - dependency_audit
+      - protected_file_policy
+  risk_controls:
+    primary_agent: risk-gate-verifier
+    required_skills:
+      - risk-control-audit
+      - fsv-verify
+      - edge-case-audit
+    file_globs:
+      - "src/core/risk*.py"
+      - "src/core/execution*.py"
+      - "src/models/**/*.py"
+      - "tests/**/*risk*"
+    required_evidence:
+      - pre_state
+      - post_state
+      - expected_delta
+      - rejected_bypass_paths
+  trade_lifecycle:
+    primary_agent: trade-lifecycle-auditor
+    required_skills:
+      - sqlite-sot-verify
+      - fsv-verify
+      - edge-case-audit
+    file_globs:
+      - "src/core/trade*.py"
+      - "src/memory/**/*.py"
+      - "tests/**/*trade*"
+    required_evidence:
+      - sqlite_pre_rows
+      - sqlite_post_rows
+      - lifecycle_invariant
+      - restart_durability
+  market_data:
+    primary_agent: market-data-integrity-auditor
+    required_skills:
+      - edge-case-audit
+      - fsv-verify
+    file_globs:
+      - "src/data/**/*.py"
+      - "tests/**/*market*"
+      - "tests/**/*indicator*"
+    required_evidence:
+      - nan_warmup_cases
+      - fallback_proof
+      - source_data_comparison
+  persistent_failure:
+    primary_agent: fdd-investigator
+    required_skills:
+      - forensic-debug
+      - fsv-verify
+    file_globs:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+      - ".github/workflows/**"
+    required_evidence:
+      - hypotheses
+      - falsification_results
+      - five_whys_root_cause
+      - source_of_truth_proof
+  testing:
+    primary_agent: test-engineer
+    required_skills:
+      - test-regression
+      - edge-case-audit
+      - fsv-verify
+    file_globs:
+      - "tests/**/*.py"
+      - "src/**/*.py"
+    required_evidence:
+      - failing_before
+      - passing_after
+      - fsv_aaa_assertions
+      - edge_cases
+  merge_readiness:
+    primary_agent: ship
+    required_skills:
+      - release-evidence-pack
+      - claude-config-audit
+    file_globs:
+      - "**/*"
+    required_evidence:
+      - go_no_go
+      - command_evidence
+      - specialist_summary
+      - blockers
+      - memory_update_status
+command_contract:
+  commands:
+    - ship
+    - audit
+    - review
+    - test
+  must_reference:
+    - ".claude/rules/synergy-contract.yml"
+    - ".claude/rules/evidence-schema.yml"

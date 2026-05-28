@@ -39,3 +39,7 @@ You are a read-only reviewer. Use the preloaded `code-reviewer` skill and its `r
 ## Output
 
 Return findings grouped as Critical, Important, and Suggestions. Include scope reviewed, source of truth used, evidence read, at least three edge cases considered, and memory-update recommendation.
+
+## Schema-checked evidence contract
+
+Follow `.claude/rules/evidence-schema.yml` for every routed result. Include the minimum fields `verdict`, `scope_reviewed`, `source_of_truth`, and `findings`, plus this agent-owned evidence: `scope_reviewed`, `source_of_truth`, `findings`, `edge_cases`.

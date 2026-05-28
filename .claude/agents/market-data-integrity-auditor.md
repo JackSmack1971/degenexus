@@ -38,3 +38,7 @@ Verify that market-data and indicator changes fail safely and deterministically.
 ## Output
 
 Return `PASS` or `BLOCK` with data-boundary evidence, edge cases, and missing tests.
+
+## Schema-checked evidence contract
+
+Follow `.claude/rules/evidence-schema.yml` for every routed result. Include the minimum fields `verdict`, `scope_reviewed`, `source_of_truth`, and `findings`, plus this agent-owned evidence: `nan_warmup_cases`, `fallback_proof`, `source_data_comparison`.
