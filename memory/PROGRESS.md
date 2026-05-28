@@ -510,3 +510,34 @@ Attempted "IMPLEMENTATION + PR PHASE COMPLETE" for all eligible forensic/source-
 - Pre/post evidence captured for all executed checks.
 - Anomalies synchronized to `memory/FAILURES.md` and policy decision logged in `memory/DECISIONS.md`.
 - No production/test code fixes performed in this pass.
+
+## Session: 2026-05-28 (codex/issue-108) — IMPLEMENTATION PR PREPARED
+
+### Baseline
+- Branch: `codex/issue-108`, pre-fix HEAD: `407e0734ab51cef10c8b55bf6cd1937b54c424c4`
+- Issue: #108 — `_apply_conditions` recomputes proposal hash after first execution-gate validation
+- Collision check: open PR list contained only #112 for issue #104; no open PR claimed #108
+
+### Fix
+- `ExecutionAgent.execute()` now restamps `RiskDecision.proposal_hash` to the effective conditioned proposal hash and re-runs `ExecutionGate.validate()` before creating a trade/fill.
+- Added execution tests for conditioned hash sync, max reduction/minimum share, no-op unknown condition, and duplicate conditions.
+
+### Post-FSV
+- `python3 -m pytest tests/test_execution_agent.py tests/test_execution_agent_conditions.py -v` → 13 passed
+- `python3 -m pytest tests/ -v` → 396 passed
+- `python3 -m pytest tests/ --cov=src --cov-report=term-missing` → 396 passed, TOTAL 98%
+- `python3 -m compileall -q src/` → pass
+- `python3 -m pyflakes src/` → pass
+- `python3 -m ruff check src/ tests/` → pass
+- `python3 -m mypy src/` → success, 35 files
+- `python3 -m radon cc src/ -a` → average complexity A (2.960352422907489)
+- `python3 -m pip_audit -r requirements.txt` → no known vulnerabilities
+
+### Memory Mutations
+- `memory/FAILURES.md`: F-013 added
+- `memory/DECISIONS.md`: ADR-008 added
+- `memory/PROGRESS.md`: this session entry added
+- `memory/agent_manifests/implement-issue-108-session.json`: created
+
+### Completion Verdict
+PASS for issue #108 — minimal root-cause fix implemented with post-FSV green; no unrelated source changes.

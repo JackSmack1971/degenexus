@@ -68,3 +68,12 @@
 **Context:** User requested audit-only FDD+FSV pass and explicit prohibition on implementing fixes. Multiple quality/analyzer failures were detected.
 **Decision:** Record full forensic evidence in memory files and hand off remediation to downstream implementation agent; do not modify production/test logic in this pass.
 **Consequences:** Repository remains functionally test-green but non-compliant on ruff/mypy/tooling gates until implementation cycle.
+
+## ADR-008 — Restamp RiskDecision hash after deterministic execution conditions (codex/issue-108)
+
+**Date:** 2026-05-28
+**Issue:** #108
+**Context:** `ExecutionGate.validate()` correctly binds a `RiskDecision` to a `TradeProposal` by hash before execution. `ExecutionAgent._apply_conditions()` may deterministically reduce position size under Risk Manager conditions, which changes the proposal hash after the first gate check.
+**Decision:** Treat deterministic Risk Manager execution conditions as part of the approved decision envelope: after conditions create an effective proposal with a new hash, update `risk_decision.proposal_hash` to the effective proposal hash and immediately call `ExecutionGate.validate()` again before any trade or fill is created.
+**Alternatives rejected:** Leaving a documented hash mismatch preserves a known audit gap; forcing a full new risk cycle for deterministic risk-reducing size cuts is heavier than the current architecture requires.
+**Edge cases covered:** no-op unknown condition, 50% reduction, 99% max reduction/minimum one share, duplicate reduction conditions.

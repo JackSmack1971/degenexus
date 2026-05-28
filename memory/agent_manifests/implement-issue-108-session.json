@@ -1,0 +1,69 @@
+{
+  "session": "implement-issue-108",
+  "date": "2026-05-28",
+  "issue": 108,
+  "branch": "codex/issue-108",
+  "pre_fix_head": "407e0734ab51cef10c8b55bf6cd1937b54c424c4",
+  "root_cause": "ExecutionAgent validated the original proposal before deterministic risk conditions changed hash-participating proposal fields; the conditioned proposal was not re-bound to the RiskDecision hash or revalidated.",
+  "invariant": "A trade may only be executed when the RiskDecision hash matches the exact effective TradeProposal that will be filled.",
+  "fix_summary": "After applying conditions, restamp RiskDecision.proposal_hash to the effective proposal hash when changed and rerun ExecutionGate.validate before constructing Trade/Fill.",
+  "files_changed": [
+    "src/agents/execution_agent.py",
+    "tests/test_execution_agent.py",
+    "memory/FAILURES.md",
+    "memory/DECISIONS.md",
+    "memory/PROGRESS.md",
+    "memory/agent_manifests/implement-issue-108-session.json"
+  ],
+  "edge_cases": [
+    "50 percent conditioned size reduction restamps hash and validates twice",
+    "99 percent reduction clamps to one share and validates twice",
+    "unknown no-op condition keeps original hash and validates once",
+    "duplicate reduction conditions produce one final effective hash validation"
+  ],
+  "commands": [
+    {
+      "cmd": "python3 -m pytest tests/test_execution_agent.py tests/test_execution_agent_conditions.py -v",
+      "result": "13 passed"
+    },
+    {
+      "cmd": "python3 -m pytest tests/ -v",
+      "result": "396 passed"
+    },
+    {
+      "cmd": "python3 -m pytest tests/ --cov=src --cov-report=term-missing",
+      "result": "396 passed, TOTAL 98%"
+    },
+    {
+      "cmd": "python3 -m compileall -q src/",
+      "result": "pass"
+    },
+    {
+      "cmd": "python3 -m pyflakes src/",
+      "result": "pass"
+    },
+    {
+      "cmd": "python3 -m ruff check src/ tests/",
+      "result": "pass"
+    },
+    {
+      "cmd": "python3 -m mypy src/",
+      "result": "Success: no issues found in 35 source files"
+    },
+    {
+      "cmd": "python3 -m radon cc src/ -a",
+      "result": "Average complexity A (2.960352422907489)"
+    },
+    {
+      "cmd": "python3 -m pip_audit -r requirements.txt",
+      "result": "No known vulnerabilities found"
+    }
+  ],
+  "memory_sync": [
+    "memory/FAILURES.md",
+    "memory/DECISIONS.md",
+    "memory/PROGRESS.md"
+  ],
+  "forbidden_actions_performed": false,
+  "completion_verdict": "pass"
+}

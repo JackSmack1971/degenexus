@@ -59,8 +59,9 @@ def test_execute_returns_block_reason_for_hash_mismatch(valid_proposal, valid_ri
     assert "hash mismatch" in error.lower()
 
 
-def test_execute_applies_reduce_size_condition(valid_proposal, valid_risk_decision):
+def test_execute_applies_reduce_size_condition(valid_proposal, valid_risk_decision, mocker):
     agent = ExecutionAgent()
+    validate_spy = mocker.spy(agent.gate, "validate")
     valid_risk_decision.conditions = ["reduce_size_by_50pct"]
     valid_risk_decision.decision_type = RiskDecisionType.APPROVED_WITH_CONDITIONS
 
@@ -74,6 +75,75 @@ def test_execute_applies_reduce_size_condition(valid_proposal, valid_risk_decisi
     assert trade is not None
     assert fill is not None
     assert trade.shares == valid_proposal.position_size_shares // 2
+    assert fill.shares == trade.shares
+    assert valid_risk_decision.proposal_hash != valid_proposal.proposal_hash
+    assert valid_risk_decision.proposal_hash == agent._apply_conditions(
+        valid_proposal, valid_risk_decision
+    ).proposal_hash
+    assert validate_spy.call_count == 2
+
+
+def test_execute_revalidates_after_max_condition_reduction(valid_proposal, valid_risk_decision, mocker):
+    agent = ExecutionAgent()
+    validate_spy = mocker.spy(agent.gate, "validate")
+    valid_risk_decision.conditions = ["reduce_size_by_99pct"]
+    valid_risk_decision.decision_type = RiskDecisionType.APPROVED_WITH_CONDITIONS
+
+    trade, fill, error = agent.execute(
+        proposal=valid_proposal,
+        risk_decision=valid_risk_decision,
+        current_price=valid_proposal.entry_price,
+    )
+
+    assert error is None
+    assert trade is not None
+    assert fill is not None
+    assert trade.shares == 1
+    assert fill.shares == 1
+    assert valid_risk_decision.proposal_hash != valid_proposal.proposal_hash
+    assert validate_spy.call_count == 2
+
+
+def test_execute_does_not_restamp_for_unknown_condition(valid_proposal, valid_risk_decision, mocker):
+    agent = ExecutionAgent()
+    validate_spy = mocker.spy(agent.gate, "validate")
+    original_hash = valid_risk_decision.proposal_hash
+    valid_risk_decision.conditions = ["manual_review_only"]
+    valid_risk_decision.decision_type = RiskDecisionType.APPROVED_WITH_CONDITIONS
+
+    trade, fill, error = agent.execute(
+        proposal=valid_proposal,
+        risk_decision=valid_risk_decision,
+        current_price=valid_proposal.entry_price,
+    )
+
+    assert error is None
+    assert trade is not None
+    assert fill is not None
+    assert trade.shares == valid_proposal.position_size_shares
+    assert valid_risk_decision.proposal_hash == original_hash
+    assert validate_spy.call_count == 1
+
+
+def test_execute_revalidates_duplicate_reduce_size_conditions(valid_proposal, valid_risk_decision, mocker):
+    agent = ExecutionAgent()
+    validate_spy = mocker.spy(agent.gate, "validate")
+    valid_risk_decision.conditions = ["reduce_size_by_50pct", "reduce size by 50pct"]
+    valid_risk_decision.decision_type = RiskDecisionType.APPROVED_WITH_CONDITIONS
+
+    trade, fill, error = agent.execute(
+        proposal=valid_proposal,
+        risk_decision=valid_risk_decision,
+        current_price=valid_proposal.entry_price,
+    )
+
+    assert error is None
+    assert trade is not None
+    assert fill is not None
+    assert trade.shares == 2
+    assert fill.shares == 2
+    assert valid_risk_decision.proposal_hash != valid_proposal.proposal_hash
+    assert validate_spy.call_count == 2
 
 
 def test_execute_still_runs_for_zero_current_price(valid_proposal, valid_risk_decision):

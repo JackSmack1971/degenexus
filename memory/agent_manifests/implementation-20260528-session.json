@@ -2,8 +2,24 @@
   "session_id": "claude/degenexus-forensic-impl-GpA5n",
   "date": "2026-05-28",
   "phase": "implementation",
-  "issues_seen": [84, 85, 86, 87, 88, 89, 91],
-  "issues_eligible": [84, 85, 86, 87, 88, 89, 91],
+  "issues_seen": [
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    91
+  ],
+  "issues_eligible": [
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    91
+  ],
   "skipped": [],
   "branches": {
     "84": "codex/issue-84",
@@ -15,13 +31,34 @@
     "91": "codex/issue-91"
   },
   "prs": {
-    "84": {"number": 96, "url": "https://github.com/JackSmack1971/degenexus/pull/96"},
-    "85": {"number": 95, "url": "https://github.com/JackSmack1971/degenexus/pull/95"},
-    "86": {"number": 97, "url": "https://github.com/JackSmack1971/degenexus/pull/97"},
-    "87": {"number": 94, "url": "https://github.com/JackSmack1971/degenexus/pull/94"},
-    "88": {"number": 98, "url": "https://github.com/JackSmack1971/degenexus/pull/98"},
-    "89": {"number": 93, "url": "https://github.com/JackSmack1971/degenexus/pull/93"},
-    "91": {"number": 99, "url": "https://github.com/JackSmack1971/degenexus/pull/99"}
+    "84": {
+      "number": 96,
+      "url": "https://github.com/JackSmack1971/degenexus/pull/96"
+    },
+    "85": {
+      "number": 95,
+      "url": "https://github.com/JackSmack1971/degenexus/pull/95"
+    },
+    "86": {
+      "number": 97,
+      "url": "https://github.com/JackSmack1971/degenexus/pull/97"
+    },
+    "87": {
+      "number": 94,
+      "url": "https://github.com/JackSmack1971/degenexus/pull/94"
+    },
+    "88": {
+      "number": 98,
+      "url": "https://github.com/JackSmack1971/degenexus/pull/98"
+    },
+    "89": {
+      "number": 93,
+      "url": "https://github.com/JackSmack1971/degenexus/pull/93"
+    },
+    "91": {
+      "number": 99,
+      "url": "https://github.com/JackSmack1971/degenexus/pull/99"
+    }
   },
   "pr_issue_comments": {
     "84": "https://github.com/JackSmack1971/degenexus/issues/84#issuecomment-4564115604",
@@ -35,14 +72,14 @@
   "pre_fix_head": "e89da86aa72487095b4ae05017688233516f0de0",
   "pre_fix_tests": "363 passed, 5 skipped",
   "commands_run": [
-    "git checkout -b codex/issue-N origin/main (×7)",
+    "git checkout -b codex/issue-N origin/main (\u00d77)",
     "python3 -m pytest tests/ -q --tb=no",
     "python3 -m pytest tests/ --cov=src --cov-report=term-missing -q --tb=no",
     "ruff check src/ tests/",
     "ruff check tests/ src/ --fix",
     "python3 -m mypy src/",
     "git add ... && git commit -m ...",
-    "git push -u origin codex/issue-N (×7)"
+    "git push -u origin codex/issue-N (\u00d77)"
   ],
   "issue_fsv_results": {
     "84": {
@@ -69,15 +106,15 @@
     "87": {
       "root_cause": "Ad-hoc utility script used os.environ.get() bypassing Settings pydantic-settings SecretStr boundary",
       "fix": "Replaced os.environ.get('OPENROUTER_API_KEY') with Settings().openrouter_api_key.get_secret_value()",
-      "pre": "grep -n os.environ src/get-model-list.py → line 6",
-      "post": "grep -n os.environ src/get-model-list.py → 0 results",
+      "pre": "grep -n os.environ src/get-model-list.py \u2192 line 6",
+      "post": "grep -n os.environ src/get-model-list.py \u2192 0 results",
       "files_changed": 1
     },
     "88": {
       "root_cause": "Docstring written before RISK_HARD_GATE was formalized; LEARN phase was planned but never implemented",
       "fix": "Updated orchestrator.py:40 class docstring to correct 8-phase sequence",
-      "pre": "grep LEARN src/orchestrator.py → line 40",
-      "post": "grep LEARN src/orchestrator.py → 0 results; RISK_HARD_GATE present",
+      "pre": "grep LEARN src/orchestrator.py \u2192 line 40",
+      "post": "grep LEARN src/orchestrator.py \u2192 0 results; RISK_HARD_GATE present",
       "files_changed": 1
     },
     "89": {
@@ -90,8 +127,8 @@
     "91": {
       "root_cause": "main.py written before portfolio= DI injection existed (issue #51); never updated after DI was added",
       "fix": "Removed os.environ['STARTING_CAPITAL'] = str(args.capital); added Portfolio(starting_capital=args.capital) via DI",
-      "pre": "grep os.environ main.py → line 142",
-      "post": "grep os.environ main.py → only LOG_LEVEL/ANTHROPIC_API_KEY references; 363 tests pass",
+      "pre": "grep os.environ main.py \u2192 line 142",
+      "post": "grep os.environ main.py \u2192 only LOG_LEVEL/ANTHROPIC_API_KEY references; 363 tests pass",
       "files_changed": 1
     }
   },
@@ -102,5 +139,74 @@
   ],
   "all_eligible_issues_have_prs": true,
   "forbidden_actions_performed": false,
-  "completion_verdict": "pass"
+  "completion_verdict": "pass",
+  "follow_up_sessions": [
+    {
+      "session": "codex/issue-108",
+      "date": "2026-05-28",
+      "issues_seen": [
+        101,
+        102,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110
+      ],
+      "issues_eligible": [
+        101,
+        102,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110
+      ],
+      "already_had_open_prs": {
+        "104": "https://github.com/JackSmack1971/degenexus/pull/112"
+      },
+      "implemented": [
+        108
+      ],
+      "skipped_reasons": {
+        "101": "not implemented in this single-branch local pass; remains eligible for isolated branch/PR",
+        "102": "not implemented in this single-branch local pass; remains eligible for isolated branch/PR",
+        "105": "depends operationally on #101 coverage threshold issue being safe to merge first; remains eligible after #101",
+        "106": "not implemented in this single-branch local pass; remains eligible for isolated branch/PR",
+        "107": "not implemented in this single-branch local pass; remains eligible for isolated branch/PR",
+        "109": "not implemented in this single-branch local pass; remains eligible for isolated branch/PR",
+        "110": "not implemented in this single-branch local pass; remains eligible for isolated branch/PR"
+      },
+      "branches": {
+        "108": "codex/issue-108"
+      },
+      "prs": {
+        "108": "recorded via make_pr tool after local commit"
+      },
+      "commands": [
+        "GitHub REST open issue/PR collision checks",
+        "python3 -m pytest tests/ -v",
+        "python3 -m pytest tests/ --cov=src --cov-report=term-missing",
+        "python3 -m compileall -q src/",
+        "python3 -m pyflakes src/",
+        "python3 -m ruff check src/ tests/",
+        "python3 -m mypy src/",
+        "python3 -m radon cc src/ -a",
+        "python3 -m pip_audit -r requirements.txt"
+      ],
+      "memory_files": [
+        "memory/FAILURES.md",
+        "memory/DECISIONS.md",
+        "memory/PROGRESS.md",
+        "memory/agent_manifests/implement-issue-108-session.json",
+        "memory/agent_manifests/implementation-20260528-session.json"
+      ],
+      "all_eligible_issues_have_prs": false,
+      "forbidden_actions_performed": false,
+      "completion_verdict": "partial-pass-issue-108-only"
+    }
+  ]
 }
