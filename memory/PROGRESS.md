@@ -1,5 +1,47 @@
 # PROGRESS
 
+## Session: 2026-05-28 (claude/system-wide-audit-A6EtF) — SYSTEM-WIDE AUDIT COMPLETE
+
+### Audit Baseline
+- Branch: `claude/system-wide-audit-A6EtF`, HEAD: `d11d20b91540b3d19ae92da8a4f8a77c8903421e`
+- Git status: CLEAN
+- Open issues at start: 2 (#101, #102)
+- Open PRs at start: 0
+- Prior test state: 389 passed, 4 skipped, TOTAL 97% coverage
+- Prior ruff/mypy/pyflakes/radon/pip-audit: all CLEAN
+- Tooling gap: pytest/ruff/mypy/pyflakes not on system Python — all 10 passes via static source inspection + grep + GitHub MCP
+
+### 10-Pass Coverage
+
+All 10 audit passes completed: Orientation, Deps, Build/Test/CI, Runtime, Security, Arch, Obs/Ops, Docs, DX, Final.
+
+### Anomalies Found and Issue Map
+
+| ID | Anomaly | Issue | Priority |
+|----|---------|-------|----------|
+| B1 | `check_partial_tp` wrong formula for SHORT — fires at entry | [#104](https://github.com/JackSmack1971/degenexus/issues/104) | P1 |
+| C1 | CI `--cov-fail-under=50` far below 90% target | [#105](https://github.com/JackSmack1971/degenexus/issues/105) | P2 |
+| D1 | `langchain`+`langchain-anthropic` in requirements.txt unused | [#106](https://github.com/JackSmack1971/degenexus/issues/106) | P2 |
+| C2 | No ruff/mypy/pyflakes gate in CI | [#107](https://github.com/JackSmack1971/degenexus/issues/107) | P2 |
+| B2 | `_apply_conditions` recomputes hash but gate not re-validated | [#108](https://github.com/JackSmack1971/degenexus/issues/108) | P2 |
+| R1 | README.md + AGENTS.md stale (Python version, OPENAI_API_KEY, pandas-ta) | [#109](https://github.com/JackSmack1971/degenexus/issues/109) | P3 |
+| C3 | CI Python 3.12 only — no 3.11 matrix | [#110](https://github.com/JackSmack1971/degenexus/issues/110) | P3 |
+
+### Investigated but Not Confirmed (no issue filed)
+- `orchestrator.py:302` `hasattr(self, "portfolio_manager")` — legitimate init-order guard
+- `TradeStore.get_recent_trades()` excludes PARTIALLY_CLOSED — intentional by design
+- ALLOWED_FREE_MODELS hardcoded list — maintenance concern, no confirmed bug
+- `Portfolio.__init__` os.getenv fallback — by design per CLAUDE.md SoT table
+
+### Memory Mutations This Session
+- `audit-manifest-system-wide-2026-05-28.md`: Created (audit manifest)
+- `memory/PROGRESS.md`: This session entry added
+
+### Completion Verdict
+PASS — 7 new issues created (#104-#110); all confirmed with direct source evidence; all novel (0 duplicates); no forbidden actions; no source/test edits; no PRs; no issue closures.
+
+---
+
 ## Session: 2026-05-28 (claude/degenexus-audit-phase-GkTx3) — FDD+FSV AUDIT COMPLETE
 
 ### Audit Baseline
