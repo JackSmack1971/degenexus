@@ -1,8 +1,6 @@
 """Tests for SyntheticDataGenerator OHLCV integrity."""
 
-import pytest
 from src.data.fallback import SyntheticDataGenerator
-from src.data.market_feed import OHLCVBar
 
 
 class TestSyntheticBarCount:

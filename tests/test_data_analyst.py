@@ -1,7 +1,7 @@
 """Tests for DataAnalystAgent signal parsing, fallback, and quality detection."""
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from datetime import datetime, timezone, timedelta
 
 from src.agents.data_analyst import DataAnalystAgent

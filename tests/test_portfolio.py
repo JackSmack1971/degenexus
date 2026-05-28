@@ -3,7 +3,7 @@
 import pytest
 import uuid
 from src.core.portfolio import Portfolio
-from src.models.trade import Trade, Position, Direction, TradeState, OrderType, CloseReason
+from src.models.trade import Trade, Position, Direction, TradeState, OrderType
 
 
 def make_trade(symbol="AAPL", direction=Direction.LONG, fill_price=150.0, shares=10,

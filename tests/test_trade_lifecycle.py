@@ -87,13 +87,11 @@ class TestInvalidTransitions:
 class TestTerminalStates:
     @pytest.mark.parametrize("state", list(TERMINAL_STATES))
     def test_all_terminal_states_are_final(self, state):
-        lc = TradeLifecycle()
         t = make_proposed_trade()
         t.state = state
         assert t.is_terminal is True
 
     def test_open_is_not_terminal(self):
-        lc = TradeLifecycle()
         t = make_proposed_trade()
         t.state = TradeState.OPEN
         assert t.is_terminal is False

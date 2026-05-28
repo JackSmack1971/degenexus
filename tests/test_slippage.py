@@ -1,6 +1,5 @@
 """Tests for SlippageModel and order type selection."""
 
-import pytest
 from src.core.slippage import SlippageModel, select_order_type
 
 

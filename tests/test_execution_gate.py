@@ -49,7 +49,6 @@ class TestHashMismatch:
     def test_cannot_reuse_approval_for_different_proposal(self, valid_proposal, valid_risk_decision):
         """Critical: approval signed for proposal A cannot be used for proposal B."""
         gate = ExecutionGate()
-        from src.models.signals import TradeProposal
         proposal_b = valid_proposal.model_copy(deep=True)
         proposal_b.position_size_shares = 99
         proposal_b.proposal_hash = proposal_b.compute_hash()
@@ -92,7 +91,6 @@ class TestCEOCannotBypass:
         """Simulate CEO trying to call gate.validate with a mocked approval."""
         gate = ExecutionGate()
         # Even if CEO builds a custom RiskDecision with wrong hash, gate blocks it
-        from src.models.signals import RiskDecision, RiskDecisionType
         ceo_fake_approval = RiskDecision(
             proposal_id=valid_proposal.proposal_id,
             proposal_hash="ceo_bypass_attempt",

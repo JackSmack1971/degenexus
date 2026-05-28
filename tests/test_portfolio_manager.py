@@ -562,7 +562,6 @@ class TestMarketFeedDI:
 
     def test_edge_case_feed_returns_nan(self):
         """feed.get_current_price returns float('nan') -- treated as valid price (not None guard)."""
-        import math
         fake_feed = FakeMarketFeed({"AAPL": float("nan")})
         portfolio = Portfolio(starting_capital=10_000.0)
         agent = PortfolioManagerAgent(portfolio=portfolio, feed=fake_feed)

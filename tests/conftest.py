@@ -10,7 +10,7 @@ from src.models.signals import (
     MarketSignal, TradeProposal, RiskDecision, RiskDecisionType,
     IndicatorSnapshot, EntryZone, Trend, SignalStrength, DataQuality,
 )
-from src.models.trade import Trade, Position, Direction, TradeState, OrderType
+from src.models.trade import Position, Direction
 from src.core.portfolio import Portfolio
 from src.core.risk_gate import RiskGate, RiskLimits
 from src.core.slippage import SlippageModel
