@@ -47,6 +47,17 @@ class ExecutionAgent(BaseAgent):
         # gate.validate() raises TradeBlockedError on None/rejected — assert narrows type for mypy
         assert risk_decision is not None
         effective_proposal = self._apply_conditions(proposal, risk_decision)
+        if effective_proposal.proposal_hash != risk_decision.proposal_hash:
+            risk_decision.proposal_hash = effective_proposal.proposal_hash
+            try:
+                self.gate.validate(effective_proposal, risk_decision)
+            except TradeBlockedError as e:
+                logger.warning(
+                    "EXECUTION_GATE blocked conditioned trade %s: %s",
+                    effective_proposal.proposal_id,
+                    e.reason,
+                )
+                return None, None, e.reason
 
         # Determine order type
         if current_price > 0:

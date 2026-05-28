@@ -145,3 +145,10 @@
 - **Root cause:** Runtime environment provisioned with Python 3.11 despite CLAUDE.md declaring "Runtime: Python 3.12".
 - **Blast radius:** Contributors on Python 3.11 cannot install via pyproject.toml; subtle behavioral divergences possible.
 - **Issue:** #89
+
+## F-013 — Conditioned Execution Must Restamp and Revalidate Proposal Hashes
+
+**Date:** 2026-05-28
+**Issue:** #108
+**Failure mode:** `ExecutionAgent.execute()` validated the original proposal hash, then applied Risk Manager size-reduction conditions that recomputed `TradeProposal.proposal_hash` without keeping `RiskDecision.proposal_hash` in sync. Conditioned fills could therefore execute proposal B while retaining approval metadata for proposal A.
+**Prevention:** Whenever execution conditions mutate proposal fields that participate in `compute_hash()`, restamp the risk decision hash to the effective proposal and re-run `ExecutionGate.validate()` before constructing the trade/fill. Cover null/no-op, min/max reduction, and duplicate-condition paths in execution tests.
