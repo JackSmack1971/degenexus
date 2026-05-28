@@ -1,9 +1,11 @@
-import os
 import math
 import requests
 
+from src.core.settings import Settings
+
 BASE = "https://openrouter.ai/api/v1"
-API_KEY = os.environ.get("OPENROUTER_API_KEY")
+_settings = Settings()
+API_KEY = _settings.openrouter_api_key.get_secret_value() if _settings.openrouter_api_key else None
 
 def _get(path: str):
     headers = {"Authorization": f"Bearer {API_KEY}"} if API_KEY else {}
