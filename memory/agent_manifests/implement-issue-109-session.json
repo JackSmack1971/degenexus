@@ -1,0 +1,16 @@
+{
+  "session": "claude/degenexus-forensic-impl-eW5PT",
+  "date": "2026-05-28",
+  "issue": 109,
+  "branch": "codex/issue-109",
+  "pre_fix_head": "e572bc6",
+  "root_cause": "README.md was not updated when PR #93 fixed pyproject.toml requires-python; OPENAI_API_KEY reference was never accurate; LangChain removed but still in Acknowledgements; pandas-ta is wrong package name (should be ta)",
+  "fix_summary": "4 README.md changes: Python 3.12→3.11 (x2 locations), OPENAI_API_KEY→OPENROUTER_API_KEY, removed LangChain from Compatibility and Acknowledgements, pandas-ta→ta",
+  "files_changed": ["README.md"],
+  "pre_grep": "grep 3.12|OPENAI_API_KEY|pandas-ta|LangChain README.md → 5 matches",
+  "post_grep": "grep 3.12|OPENAI_API_KEY|pandas-ta|LangChain README.md → 0 matches",
+  "agents_md_status": "AGENTS.md:17 already says 'Python >=3.11' — no change needed",
+  "tests_unchanged": 408,
+  "forbidden_actions_performed": false,
+  "completion_verdict": "pass"
+}

@@ -27,7 +27,7 @@ You receive a clean cycle summary showing trades taken, profit/loss, current por
 ## Quickstart (macOS, Linux, or Windows)
 
 ### Prerequisites
-- Python 3.12 or newer
+- Python 3.11 or newer
 - An Anthropic API key (free tier available at https://console.anthropic.com — the system primarily uses Claude models)
 - Git
 
@@ -114,7 +114,7 @@ pip install -e .
 **Required environment variable** (create a `.env` file):
 - `ANTHROPIC_API_KEY` — your Anthropic Claude API key (primary model provider)
 
-Optional: `OPENAI_API_KEY` for future fallback use.
+Optional: `OPENROUTER_API_KEY` — enables OpenRouter as an alternative LLM provider.
 
 Key files:
 - `pyproject.toml` — project metadata, pytest, and coverage settings
@@ -135,7 +135,7 @@ Key files:
 - **Architecture & Quality**: Follows strict Forensic-Driven Development and Full State Verification rules defined in `CLAUDE.md`. Automated audits run regularly.
 - **License**: No `LICENSE` file is present yet. All rights reserved by the author until a license is added.
 - **Security**: No `SECURITY.md` yet. The project follows STRIDE threat modeling principles and keeps all secrets in environment variables only. Report issues via GitHub.
-- **Compatibility**: Python ≥ 3.12. Core dependencies include yfinance, Anthropic Claude, LangChain, pandas, TA-Lib indicators, Pydantic, and Rich.
+- **Compatibility**: Python ≥ 3.11. Core dependencies include yfinance, Anthropic Claude, pandas, ta indicators, Pydantic, and Rich.
 - **Status**: This is a **simulation and research tool**. It is not intended for live trading.
 
 ## Contributing
@@ -181,8 +181,7 @@ Current focus areas:
 
 Built with:
 - Anthropic Claude models
-- LangChain
-- yfinance + pandas-ta
+- yfinance + ta (technical indicators)
 - Rich terminal UI
 - Pytest + automated agentic auditing
 
