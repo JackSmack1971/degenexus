@@ -1,16 +1,16 @@
 ---
-description: Break work into small verifiable tasks with acceptance criteria and dependency ordering
+description: Break work into small verifiable DegenExus tasks with acceptance criteria and dependency ordering
 ---
 
-Invoke the agent-skills:planning-and-task-breakdown skill.
+Plan mode is read-only unless the user explicitly asks you to write plan files.
 
-Read the existing spec (SPEC.md or equivalent) and the relevant codebase sections. Then:
+Workflow:
 
-1. Enter plan mode — read only, no code changes
-2. Identify the dependency graph between components
-3. Slice work vertically (one complete path per task, not horizontal layers)
-4. Write tasks with acceptance criteria and verification steps
-5. Add checkpoints between phases
-6. Present the plan for human review
+1. Read the request, relevant docs, and affected code/tests.
+2. Identify source-of-truth locations and risk surfaces.
+3. Slice work vertically into independently verifiable increments.
+4. For each task, list acceptance criteria, verification commands, source-of-truth evidence, and at least three edge cases.
+5. Identify which specialists should review each task.
+6. Present the plan for human review before implementation.
 
-Save the plan to tasks/plan.md and task list to tasks/todo.md.
+If asked to persist the plan, write it under `tasks/` or the user-specified path.

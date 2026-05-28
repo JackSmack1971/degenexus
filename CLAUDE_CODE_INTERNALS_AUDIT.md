@@ -4,6 +4,25 @@
 **Scope:** `CLAUDE.md`, `.claude/agents/`, `.claude/skills/`, `.claude/commands/`, `.claude/rules/`, `.claude/imports/`, `.claude/output-styles/`, and `.claude/agent-memory/`.  
 **Constraint honored:** This audit creates recommendations only and does **not** modify the Claude setup files themselves.
 
+
+## Remediation Status — 2026-05-28 Single-PR Implementation
+
+This audit has been converted from recommendations into a single implementation change. The map below gives downstream reviewers an exact issue-to-remediation index.
+
+| Audit issue | Status | Primary implementation points |
+| --- | --- | --- |
+| Invalid skill frontmatter | Addressed | Normalized `code-reviewer` and `forensic-debug` skill frontmatter; added `.claude/hooks/validate-claude-config.py`. |
+| Missing skill references | Addressed | Replaced missing `security-auditor` skill refs with local skills; rewrote slash commands away from plugin-only `agent-skills:*` references. |
+| Overlapping test roles | Addressed | Made `test-engineer` the single write-capable test agent; converted `test-writer` to a read-only deprecated alias. |
+| `/ship` generic/broad behavior | Addressed | Rebuilt `ship` agent and `/ship` command around DegenExus checks, approved specialists, config health, tests, secrets/DB checks, and GO/NO-GO output. |
+| Missing settings/hooks enforcement | Addressed | Added `.claude/settings.json`, post-edit config validation hook, and subagent lifecycle logging hook. |
+| Long always-loaded `CLAUDE.md` | Addressed | Slimmed `CLAUDE.md` to durable doctrine and moved detailed workflows into skills and `.claude/README.md`. |
+| Missing `.claude` internals map | Addressed | Added `.claude/README.md` with directory, agent, skill, command, and validation matrices. |
+| Missing DegenExus specialists | Addressed | Added risk, prompt-injection, trade-lifecycle, market-data-integrity, and docs/memory curator agents. |
+| Missing synergy skills | Addressed | Added config audit, risk-control, prompt-safety, SQLite SoT, and release-evidence-pack skills. |
+| Empty/misaligned agent memory | Addressed | Added memory write criteria and renamed security memory to `security-auditor`. |
+| Naming/description drift | Addressed | Normalized local agent/skill/command vocabulary and removed stale issue-specific test-agent behavior. |
+
 ## Executive Summary
 
 DegenExus has a strong Claude Code foundation: a project-level doctrine, task-specialized agents, reusable skills, command wrappers, security rules, and agent memory folders. The main opportunity is to make the setup more internally consistent and more aligned with current Claude Code behavior: subagents are selected by `description`, scoped by frontmatter, can preload named skills, and may use project or user memory; skills are on-demand context modules with `SKILL.md` frontmatter; settings and hooks provide enforceable automation; and `/context`, `/agents`, `/skills`, `/hooks`, and `/doctor` are the operational checks for what actually loaded.

@@ -1,8 +1,9 @@
 ---
-
 name: forensic-debug
-description: Activate for forensic debugging of software systems when symptoms indicate a violated invariant, unreliable logs/metrics/dashboards, production incidents, or when you must reconstruct causal truth from contradictory evidence in concurrent, distributed, kernel, or complex production environments. Trigger phrases: "root cause", "what actually happened", "why did the invariant break", "forensic analysis", "reconstruct the timeline", "logs disagree with reality", "Heisenbug", or when dashboards say healthy but users are impacted.
-
+description: >
+  Activate for forensic debugging of software systems when symptoms indicate
+  violated invariants, contradictory evidence, unreliable logs, production
+  incidents, Heisenbugs, or causal timeline reconstruction.
 ---
 
 # Activation

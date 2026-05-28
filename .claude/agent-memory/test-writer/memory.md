@@ -2,6 +2,11 @@
 > Persistent memory for the test-writer subagent.
 > Stores: testing patterns, coverage gaps, common edge cases for this codebase.
 
+## Memory Write Criteria
+- Record only recurring patterns, validated false positives, and stable project facts.
+- Do not record one-off task details.
+- Include date and source evidence for every entry.
+
 ## Testing Patterns That Work Well in This Codebase
 [Empty — populated as test suites are written]
 

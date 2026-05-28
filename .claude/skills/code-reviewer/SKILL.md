@@ -1,25 +1,9 @@
 ---
-
 name: code-reviewer
 description: >
-  Senior code reviewer that evaluates changes across five dimensions —
-  correctness, readability, architecture, security, and performance.
-  Use for thorough code review before merge.
-tools:
-
-- Read
-- Grep
-- Glob
-  disallowedTools:
-- Write
-- Edit
-- Bash
-  model: sonnet
-  effort: high
-  permissionMode: dontAsk
-  maxTurns: 10
-  user-invocable: true
-
+  Use for reusable five-dimension code-review workflows covering correctness,
+  readability, architecture, security, and performance with file-specific
+  findings and concrete recommendations.
 ---
 
 # Senior Code Reviewer

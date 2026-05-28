@@ -1,18 +1,18 @@
 ---
-description: Implement the next task incrementally — build, test, verify, commit
+description: Implement the next DegenExus task incrementally with tests, FSV evidence, and verification
 ---
 
-Invoke the agent-skills:incremental-implementation skill alongside agent-skills:test-driven-development.
+Use the local `test-engineer` workflow plus `edge-case-audit` and `fsv-verify` skills. Do not reference plugin-only skill names unless a plugin dependency is documented and verified.
 
-Pick the next pending task from the plan. For each task:
+For each task:
 
-1. Read the task's acceptance criteria
-2. Load relevant context (existing code, patterns, types)
-3. Write a failing test for the expected behavior (RED)
-4. Implement the minimum code to pass the test (GREEN)
-5. Run the full test suite to check for regressions
-6. Run the build to verify compilation
-7. Commit with a descriptive message
-8. Mark the task complete and move to the next one
+1. Read acceptance criteria and identify the source of truth.
+2. Load relevant code, tests, and project conventions.
+3. Write a failing Prove-It or feature test when behavior changes.
+4. Implement the minimum change to satisfy the test.
+5. Reread the source of truth and compare the expected delta.
+6. Run targeted tests, then broader tests when feasible.
+7. Run `python3 -m compileall -q src/` for runtime changes.
+8. Commit with a scoped conventional-style subject when the change is ready.
 
-If any step fails, follow the agent-skills:debugging-and-error-recovery skill.
+If verification fails repeatedly, stop and use `fdd-investigator` for read-only root-cause analysis before more edits.
