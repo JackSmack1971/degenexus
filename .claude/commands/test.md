@@ -2,7 +2,7 @@
 description: Run DegenExus pytest workflow with Prove-It regressions, FSV-AAA assertions, and edge-case coverage
 ---
 
-Use the `test-engineer` subagent for test authoring or coverage analysis.
+Use the `test-engineer` subagent and `test-regression`, `edge-case-audit`, and `fsv-verify` skills for test authoring or coverage analysis.
 
 For new behavior:
 1. Identify the source of truth and current test patterns.
@@ -13,3 +13,5 @@ For new behavior:
 6. Run targeted pytest first, then broader regression tests when feasible.
 
 For bugs, use Prove-It: write a failing regression test first, confirm it fails, then fix and confirm it passes.
+
+Final output must include: Scope reviewed; Source of Truth used; Specialists/skills invoked; Evidence commands and exact results; Findings by severity or coverage gap; at least three edge cases considered; Memory update needed yes/no plus path; Next action owner.

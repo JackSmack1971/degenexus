@@ -3,6 +3,10 @@ name: sqlite-sot-verify
 description: >
   Verify SQLite-backed source-of-truth changes with direct PRE/POST row reads,
   delta accounting, restart durability checks, and rejection of ORM-only proof.
+when_to_use: >
+  Use when changes touch SQLite-backed state, TradeStore, trade lifecycle
+  persistence, audit rows, restart durability, or direct source-of-truth
+  verification.
 ---
 
 # SQLite Source-of-Truth Verify

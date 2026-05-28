@@ -4,6 +4,10 @@ description: >
   Use for reusable five-dimension code-review workflows covering correctness,
   readability, architecture, security, and performance with file-specific
   findings and concrete recommendations.
+when_to_use: >
+  Use for project-specific reviews of diffs, pull requests, merge readiness, or
+  file-specific feedback across correctness, readability, architecture, security,
+  and performance.
 ---
 
 # Senior Code Reviewer

@@ -1,6 +1,9 @@
 ---
 name: fsv-verify
 description: Activate Full State Verification (FSV) on every agentic write/mutate operation. Enforce PRE → ACT → POST → DIFF → HALT with adversarial source-of-truth (SoT) decoupling to eliminate tautological verification, context-compaction drift, and automation bias in agentic software engineering.
+when_to_use: >
+  Use for every write or mutation that needs source-of-truth proof with PRE, ACT,
+  POST, DIFF, and HALT evidence.
 ---
 
 ### Activation

@@ -41,6 +41,38 @@
           }
         ]
       }
+    ],
+    "ConfigChange": [
+      {
+        "matcher": "project_settings|skills",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/validate-claude-config.py"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/session-start-reminder.py"
+          }
+        ]
+      }
+    ],
+    "FileChanged": [
+      {
+        "matcher": ".env|.envrc|.env.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/warn-env-file-changed.py"
+          }
+        ]
+      }
     ]
   }
 }

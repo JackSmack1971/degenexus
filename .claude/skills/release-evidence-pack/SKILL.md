@@ -3,6 +3,10 @@ name: release-evidence-pack
 description: >
   Assemble merge-readiness evidence for DegenExus PRs: tests, compile checks,
   security scan status, edge cases, changed files, memory updates, and gate verdicts.
+disable-model-invocation: true
+when_to_use: >
+  Invoke explicitly during `/ship`, PR preparation, or docs-memory-curator evidence
+  audits.
 ---
 
 # Release Evidence Pack
