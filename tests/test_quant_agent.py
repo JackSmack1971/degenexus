@@ -6,9 +6,8 @@ from pydantic import ValidationError
 from src.agents.quant_agent import QuantAgent
 from src.models.signals import (
     TradeProposal, MarketSignal, EntryZone, IndicatorSnapshot,
-    Trend, SignalStrength, DataQuality,
+    Trend, SignalStrength,
 )
-from src.models.trade import Direction
 
 
 def _make_signal(direction: str = "LONG", price: float = 100.0) -> MarketSignal:

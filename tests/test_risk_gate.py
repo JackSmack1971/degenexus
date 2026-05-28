@@ -1,9 +1,7 @@
 """Tests for RiskGate hard rules — most critical path in the system."""
 
 import math
-import pytest
-from src.core.risk_gate import RiskGate, RiskLimits
-from src.models.signals import TradeProposal, RiskDecisionType
+from src.models.signals import RiskDecisionType
 
 
 def check_hard_rules(risk_gate, proposal, **overrides):

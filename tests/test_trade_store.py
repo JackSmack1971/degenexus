@@ -102,7 +102,7 @@ class TestSchemaMigration:
 
     def test_fresh_db_has_partial_pnl_from_create(self, tmp_path):
         """Confirm that fresh DBs include partial_pnl (no migration needed)."""
-        store = TradeStore(db_path=str(tmp_path / "fresh.db"))
+        TradeStore(db_path=str(tmp_path / "fresh.db"))
         with sqlite3.connect(str(tmp_path / "fresh.db")) as conn:
             columns = {row[1] for row in conn.execute("PRAGMA table_info(trades)").fetchall()}
         assert "partial_pnl" in columns

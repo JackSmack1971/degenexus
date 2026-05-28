@@ -50,7 +50,7 @@ class TestOrchestratorCloseReasonGuard:
         events = []
         orc.event_callback = events.append
 
-        result = orc.run_cycle()
+        orc.run_cycle()
         closed_events = [e for e in events if e.event_type == "POSITION_CLOSED"]
         assert len(closed_events) == 1
         assert "UNKNOWN" in closed_events[0].content

@@ -1,7 +1,6 @@
 """Tests for OpenRouter client — allowlist enforcement and integration plumbing."""
 
 import logging
-import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch

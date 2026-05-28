@@ -1,7 +1,7 @@
 """Tests for PerformanceAnalytics.compute(), _compute_streak(), _compute_symbol_stats()."""
 
 import pytest
-from src.memory.performance import PerformanceAnalytics, PerformanceStats
+from src.memory.performance import PerformanceAnalytics
 
 
 def _trade(symbol: str, pnl: float, closed_at: str = "2026-01-01T00:00:00") -> dict:
