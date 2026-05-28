@@ -32,7 +32,7 @@ inside the terminal. Every decision is logged for auditing. No real trades are p
 
 ## § CORE STACK PARAMETERS
 
-- **Runtime:** Python 3.12
+- **Runtime:** Python 3.11+ (tested on 3.11.15; constraint relaxed from 3.12 per ADR-issue-89)
 - **Package Manager:** `pip` with `requirements.txt` — do NOT substitute poetry/uv
 - **Framework:** Custom multi-agent orchestration (no web framework)
 - **Database:** SQLite in WAL mode via `TradeStore` (`memory/trading_history.db`)
