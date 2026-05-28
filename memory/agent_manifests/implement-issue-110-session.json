@@ -1,0 +1,16 @@
+{
+  "session": "claude/degenexus-forensic-impl-eW5PT",
+  "date": "2026-05-28",
+  "issue": 110,
+  "branch": "codex/issue-110",
+  "pre_fix_head": "e572bc6",
+  "root_cause": "CI tested only Python 3.12 after pyproject.toml was changed to requires-python>=3.11; version-sensitive code (str(Direction.LONG) behavior) and the production environment (Python 3.11.15) were not covered",
+  "fix_summary": "Added strategy.matrix with ['3.11','3.12'] and fail-fast:false; updated setup-python to use matrix.python-version; updated CLAUDE.md runtime line",
+  "files_changed": [".github/workflows/ci.yml", "CLAUDE.md"],
+  "pre_state": "python-version: '3.12' (single value)",
+  "post_state": "matrix.python-version: ['3.11', '3.12'], fail-fast: false",
+  "tests_unchanged": 408,
+  "ruff": "CLEAN",
+  "forbidden_actions_performed": false,
+  "completion_verdict": "pass"
+}

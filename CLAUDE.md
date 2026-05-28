@@ -19,7 +19,7 @@ DegenExus is a multi-agent AI trading desk simulator. Specialized agents run an 
 
 ## Stack and Commands
 
-- **Runtime:** Python `>=3.11` per `pyproject.toml`; CI uses Python 3.12.
+- **Runtime:** Python `>=3.11` per `pyproject.toml`; CI matrix: Python 3.11 and 3.12.
 - **Package manager:** `pip` with `requirements.txt`.
 - **Database:** SQLite WAL via `TradeStore`; do not commit `*.db`, `*.db-wal`, or `*.db-shm`.
 - **Tests:** pytest 8+ with `pytest-asyncio` `asyncio_mode = "auto"`.
