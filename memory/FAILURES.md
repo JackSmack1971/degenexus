@@ -1,5 +1,27 @@
 # FAILURES
 
+## F-011 — 2026-05-28 — IndicatorEngine success-path coverage 87% regression from #55
+
+- **Failure mode:** `src/data/indicators.py` is at 87% coverage (11 missed lines: 48-49, 57-60, 77, 103-104, 115-116) — below 90% threshold. Regression from closed issue #55.
+- **Physical evidence:** `python3 -m pytest tests/ --cov=src --cov-report=term-missing` on HEAD `c68e47d`. Four tests in `tests/test_indicators.py` guard happy paths with `pytest.skip("ta library not available")` instead of sys.modules injection. No sys.modules-injected success-path tests exist for MACD (lines 57-60) or EMA (lines 103-104).
+- **Root cause:** (1) RSI/ATR/BB success-path tests use skip guards instead of the `_ta_patch()` sys.modules injection pattern already established in the file; (2) MACD/EMA happy paths have no sys.modules-injected coverage at all, unlike Bollinger which uses `_make_bollinger_result()`.
+- **Blast radius:** Any CI environment where `ta` wheel cannot be built will have 87% indicators coverage. MACD/EMA success paths are untested in ALL environments.
+- **Issue:** #101
+- **Never repeat:** When adding ta-dependent tests that use `pytest.skip` as a guard, instead use `_ta_patch()` sys.modules injection. Exception-path tests are insufficient — also test the happy path via mock injection.
+
+---
+
+## F-012 — 2026-05-28 — CLAUDE.md § KNOWN TECHNICAL DEBT table stale after issue closures
+
+- **Failure mode:** CLAUDE.md lists issues #54, #55, #56 as "medium" (open) but all three were closed 2026-05-26.
+- **Physical evidence:** CLAUDE.md line `*Last updated: 2026-05-27*`; GitHub shows #54/#55/#56 closed `2026-05-26`. Issues #57/#58 are correctly marked "done" in the same table.
+- **Root cause:** Table was written at issue-creation time; not updated after the 2026-05-26 session closed the issues.
+- **Blast radius:** Future agents reading CLAUDE.md will treat #54/#55/#56 as open work items; may re-attempt closed fixes.
+- **Issue:** #102
+- **Never repeat:** At session end, update CLAUDE.md § KNOWN TECHNICAL DEBT whenever issues in that table change state.
+
+---
+
 ## F-010 — 2026-05-28 — src/main.py mutates os.environ["STARTING_CAPITAL"] bypassing Portfolio DI injection
 
 - **Failure mode:** `main.py:142` writes `os.environ["STARTING_CAPITAL"] = str(args.capital)` as a workaround for Portfolio capital propagation. The `portfolio=` DI injection param was added in issue #51 but `main.py` was never updated to use it.

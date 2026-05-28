@@ -1,5 +1,53 @@
 # PROGRESS
 
+## Session: 2026-05-28 (claude/degenexus-audit-phase-GkTx3) — FDD+FSV AUDIT COMPLETE
+
+### Audit Baseline
+- Branch: `claude/degenexus-audit-phase-GkTx3`, HEAD: `c68e47d4f89c0472038b1fedd4cc89880bd32998`
+- Tests: **389 passed, 4 skipped**, 0 failed
+- Coverage: **TOTAL 97%** — but `src/data/indicators.py` at 87% (BELOW 90% threshold)
+- pyflakes src/: **CLEAN**
+- mypy src/: **Success: no issues found in 35 source files**
+- ruff src/ tests/: **All checks passed** (CLEAN)
+- radon: **A average (2.951)** — no D/E/F methods
+- pip-audit: **No known vulnerabilities**
+
+### Open Issues at Session Start
+- 0 open issues, 0 open PRs — clean state after prior merge session
+
+### Anomalies Found and Issue Map
+
+| ID | Anomaly | Issue | Priority |
+|----|---------|-------|----------|
+| A8 | `indicators.py` at 87% — 4 tests use `pytest.skip` instead of sys.modules injection; MACD/EMA have no happy-path sys.modules tests | [#101](https://github.com/JackSmack1971/degenexus/issues/101) | p2 |
+| A9 | CLAUDE.md § KNOWN TECHNICAL DEBT lists closed issues #54/#55/#56 as "medium" (open) — stale docs | [#102](https://github.com/JackSmack1971/degenexus/issues/102) | p3 |
+
+### Additional Audit Coverage (no new issues)
+
+- pip-audit: CLEAN — no vulnerabilities
+- radon: A average; no D/E/F methods; all methods ≤ CC=C
+- mypy: clean (no issues in 35 source files)
+- ruff: clean (all checks passed)
+- pyflakes: CLEAN
+- Prompt injection sanitization: all 4 LLM-calling agents call `_sanitize_external_text()` before prompt injection ✅
+- RiskGate: enforced at orchestrator.py:194; no bypass path found ✅
+- DI integrity: Portfolio DI used in main.py:159-162; RiskGate DI available ✅
+- .claude/rules/01-security.md: present ✅
+- .claude/imports/doctrine-summary.md: present ✅
+- Real network calls: none found in tests (yfinance patched via mocker in test_market_feed.py) ✅
+- os.getenv in main.py:151 (ANTHROPIC_API_KEY presence check): acceptable — logging check only, not reading key value for use ✅
+- os.getenv in risk_gate.py:42-47 (RiskLimits.from_env()): by design per CLAUDE.md SoT ✅
+
+### Memory Mutations This Session
+- `memory/FAILURES.md`: F-011 and F-012 entries added
+- `memory/PROGRESS.md`: This session entry added
+- `memory/agent_manifests/audit-20260528b-session.json`: Created with completion_verdict=pass
+
+### Completion Verdict
+PASS — 2 new anomalies found; both mapped to new issues (#101, #102). All other gates clean. No forbidden actions. No code edits. No PRs created. No issues closed.
+
+---
+
 ## Session: 2026-05-28 (claude/pr-review-merge-phase-axzKk) — PR REVIEW + MERGE PHASE COMPLETE
 
 ### All 7 Implementation PRs Squash-Merged to main
