@@ -1,5 +1,26 @@
 # PROGRESS
 
+## Session: 2026-05-28 (claude/degenexus-forensic-impl-REfWC) — IMPLEMENTATION+PR PHASE IN PROGRESS
+
+### Session Baseline
+- Branch: `claude/degenexus-forensic-impl-REfWC` (from main HEAD `407e073`)
+- Tests at start: 389 passed, 4 skipped (97% coverage)
+- Eligible issues: #104, #101, #108, #106, #107, #105, #109, #102, #110 (9 total)
+- Open PRs at start: 0
+
+### Implementations In Progress
+
+| Issue | Priority | Fix | Branch | PR |
+|-------|----------|-----|--------|----|
+| #104 | p1 | Direction-aware check_partial_tp formula for SHORT trades | codex/issue-104 | pending |
+
+### FSV Results — #104
+- Pre-fix: `check_partial_tp` line 123 used `fill + 1.5*risk_distance` for both LONG and SHORT, causing immediate trigger for SHORT
+- Post-fix: `trade_lifecycle.py` 100% coverage; 395 passed, 4 skipped; ruff CLEAN; pyflakes CLEAN
+- Delta: +6 new SHORT partial TP tests; 0 regressions
+
+---
+
 ## Session: 2026-05-28 (claude/system-wide-audit-A6EtF) — SYSTEM-WIDE AUDIT COMPLETE
 
 ### Audit Baseline
