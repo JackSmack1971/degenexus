@@ -1,5 +1,17 @@
 # FAILURES
 
+## F-016 — 2026-05-29 — AGENTS.md coverage gate stale after PR #125 raised CI threshold
+
+- **Failure mode:** AGENTS.md documented `--cov-fail-under=50` while CI enforced `--cov-fail-under=90` since PR #125 merged.
+- **Physical evidence:** `grep "cov-fail-under" AGENTS.md` → `50`; `grep "cov-fail-under" .github/workflows/ci.yml` → `90`.
+- **Root cause:** CI threshold updated in PR #125 without a corresponding AGENTS.md edit.
+- **Blast radius:** Contributors reading AGENTS.md believe 51% coverage is sufficient; PRs could drop coverage from 98% toward 50% believing CI will pass.
+- **Issue:** #137
+- **Fix:** Updated AGENTS.md line 20 to `--cov-fail-under=90`.
+- **Never repeat:** When changing CI coverage thresholds, update AGENTS.md in the same PR.
+
+---
+
 ## F-014 — 2026-05-29 — Open forensic audit drift after issue #105/#106 remediation
 
 - **Failure mode:** Six source:agent issues (#137-#142) remained open with no open PRs: stale coverage docs, stale mypy overrides, non-configurable risk decision TTL, dead `HardRuleViolation` API, incorrect README module paths, and missing PR templates referenced by AGENTS.md.
