@@ -157,7 +157,7 @@ pip install -r requirements.txt
 4. Update `memory/PROGRESS.md` and `memory/DECISIONS.md` following the memory protocol.
 
 ### Good First Contributions
-- Improve test coverage in `src/indicators.py`, `src/performance.py`, or `src/context_injector.py`.
+- Improve test coverage in `src/data/indicators.py`, `src/memory/performance.py`, or `src/memory/context_injector.py`.
 - Add new technical indicators or risk rules.
 - Improve dashboard visualizations in `src/display/`.
 - Help add a proper `LICENSE` and `SECURITY.md`.

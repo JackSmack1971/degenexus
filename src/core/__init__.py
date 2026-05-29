@@ -1,11 +1,11 @@
-from .risk_gate import RiskGate, HardRuleViolation
+from .risk_gate import RiskGate
 from .execution_gate import ExecutionGate, TradeBlockedError
 from .portfolio import Portfolio
 from .trade_lifecycle import TradeLifecycle
 from .slippage import SlippageModel
 
 __all__ = [
-    "RiskGate", "HardRuleViolation",
+    "RiskGate",
     "ExecutionGate", "TradeBlockedError",
     "Portfolio",
     "TradeLifecycle",

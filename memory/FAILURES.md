@@ -12,6 +12,76 @@
 
 ---
 
+## F-015 — 2026-05-29 — HardRuleViolation dead code creates misleading API contract
+
+- **Failure mode:** `HardRuleViolation(Exception)` defined in `risk_gate.py` but never raised. Docstring claims "Raised when a trade proposal violates a hard risk rule" — misleading because `check_hard_rules()` returns `list[str]`, not raises.
+- **Physical evidence:** `grep -rn "raise HardRuleViolation\|HardRuleViolation(" src/ tests/` returned 0 matches. Coverage confirmed lines 24-26 at 0% in every run.
+- **Root cause:** Class added during initial design when exception-based contract was considered; never removed when return-value API was adopted.
+- **Blast radius:** Contributors could write `except HardRuleViolation:` expecting coverage of all hard-rule violations, silently swallowing violations. Permanently uncovered lines add noise to coverage reports.
+- **Issue:** #140
+- **Fix:** Deleted `HardRuleViolation` class and its `__init__.py` export.
+- **Never repeat:** When changing an API from exception-based to return-value (or vice versa), delete the superseded exception class in the same PR rather than leaving it as dead code.
+
+---
+
+## F-017 — 2026-05-29 — Stale mypy overrides after langchain dependency removal
+
+- **Failure mode:** `[[tool.mypy.overrides]]` retained `langchain` and `langchain_anthropic` entries after PR #123 removed both from `requirements.txt`. The override silently suppressed any type errors for those packages, including if they were re-added without stubs.
+- **Physical evidence:** `grep "langchain" pyproject.toml` → entries in `[[tool.mypy.overrides]]`; `grep "langchain" requirements.txt src/` → 0 matches.
+- **Root cause:** Dependency removal PR (#123) did not include a corresponding pyproject.toml cleanup.
+- **Blast radius:** Future type gate weakened — if langchain were re-added without stubs, mypy would silently pass.
+- **Issue:** #138
+- **Fix:** Removed langchain/langchain_anthropic from `[[tool.mypy.overrides]].module`.
+- **Never repeat:** When removing a dependency from requirements.txt, search pyproject.toml for related type-stub or mypy-override references and clean them in the same PR.
+
+---
+
+## F-019 — 2026-05-29 — AGENTS.md referenced phantom PR templates
+
+- **Failure mode:** AGENTS.md line 23 instructed contributors to use `.github/PULL_REQUEST_TEMPLATE/default.md` or `bug-fix.md`, but neither file nor the directory existed. GitHub showed blank PR bodies; FSV checklist requirements were not enforced at PR creation.
+- **Physical evidence:** `ls .github/PULL_REQUEST_TEMPLATE/` → `No such file or directory`; `grep "PULL_REQUEST_TEMPLATE" AGENTS.md` → phantom reference confirmed.
+- **Root cause:** Contributor governance doc written ahead of template creation; the referenced files were never created.
+- **Blast radius:** Every PR was created with a blank body; contributors received no automatic reminder of FSV requirements, edge cases, or memory update protocol.
+- **Issue:** #142
+- **Fix:** Created `.github/PULL_REQUEST_TEMPLATE/default.md` and `.github/PULL_REQUEST_TEMPLATE/bug-fix.md` with FSV and FDD checklists.
+- **Never repeat:** When adding governance doc references to template files, create the templates in the same PR as the documentation change.
+
+---
+
+## F-018 — 2026-05-29 — README.md Good First Contributions lists non-existent module paths
+
+- **Failure mode:** README.md line 160 listed `src/indicators.py`, `src/performance.py`, `src/context_injector.py` as targets for contributor coverage improvements. None of these paths exist; the real files are in `src/data/` and `src/memory/` sub-packages.
+- **Physical evidence:** `ls src/indicators.py src/performance.py src/context_injector.py` → all "No such file or directory"; `find src/ -name "indicators.py" -o -name "performance.py" -o -name "context_injector.py"` → correct sub-package paths.
+- **Root cause:** README written before sub-package reorganization; paths not updated after modules were moved.
+- **Blast radius:** New contributors looking for the "Good First Contributions" files cannot find them; onboarding friction.
+- **Issue:** #141
+- **Fix:** Updated README.md line 160 with correct package-qualified paths.
+- **Never repeat:** After moving source modules, grep README.md, AGENTS.md, and CLAUDE.md for the old paths and update in the same PR.
+
+---
+
+## F-016 — 2026-05-29 — AGENTS.md coverage gate stale after PR #125 raised CI threshold
+
+- **Failure mode:** AGENTS.md documented `--cov-fail-under=50` while CI enforced `--cov-fail-under=90` since PR #125 merged.
+- **Physical evidence:** `grep "cov-fail-under" AGENTS.md` → `50`; `grep "cov-fail-under" .github/workflows/ci.yml` → `90`.
+- **Root cause:** CI threshold updated in PR #125 without a corresponding AGENTS.md edit.
+- **Blast radius:** Contributors reading AGENTS.md believe 51% coverage is sufficient; PRs could drop coverage from 98% toward 50% believing CI will pass.
+- **Issue:** #137
+- **Fix:** Updated AGENTS.md line 20 to `--cov-fail-under=90`.
+- **Never repeat:** When changing CI coverage thresholds, update AGENTS.md in the same PR.
+
+---
+
+## F-014 — 2026-05-29 — Open forensic audit drift after issue #105/#106 remediation
+
+- **Failure mode:** Six source:agent issues (#137-#142) remained open with no open PRs: stale coverage docs, stale mypy overrides, non-configurable risk decision TTL, dead `HardRuleViolation` API, incorrect README module paths, and missing PR templates referenced by AGENTS.md.
+- **Physical evidence:** GitHub REST API returned open issues #137-#142 and zero open PRs; local SoT scans found `--cov-fail-under=50` in AGENTS.md, `langchain` mypy overrides in `pyproject.toml`, missing `RISK_DECISION_TTL_SECONDS` in `RiskLimits.from_env()`, `HardRuleViolation` only defined/exported, stale README paths, and absent `.github/PULL_REQUEST_TEMPLATE/` directory.
+- **Root cause:** Prior issue-specific fixes updated CI/dependencies/runtime policy but did not propagate the state delta to adjacent contributor docs, type-checker config, and GitHub workflow scaffolding.
+- **Blast radius:** Contributor onboarding and PR creation could follow stale instructions; risk TTL could not be tuned through supported env configuration; static type policy silently retained removed dependency waivers.
+- **Issues:** #137, #138, #139, #140, #141, #142
+- **Fix:** Synchronize docs/config/templates with current SoT, add env-backed TTL mapping with tests, and remove the unused exception contract.
+- **Never repeat:** After resolving a forensic issue that changes CI thresholds, dependencies, or governance workflows, grep adjacent docs/config/templates and update memory in the same PR.
+
 ## F-011 — 2026-05-28 — IndicatorEngine success-path coverage 87% regression from #55
 
 - **Failure mode:** `src/data/indicators.py` is at 87% coverage (11 missed lines: 48-49, 57-60, 77, 103-104, 115-116) — below 90% threshold. Regression from closed issue #55.
