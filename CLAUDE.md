@@ -19,7 +19,7 @@ DegenExus is a multi-agent AI trading desk simulator. Specialized agents run an 
 
 ## Stack and Commands
 
-- **Runtime:** Python `>=3.11` per `pyproject.toml`; CI uses Python 3.12.
+- **Runtime:** Python `>=3.11` per `pyproject.toml`; CI matrix: Python 3.11 and 3.12.
 - **Package manager:** `pip` with `requirements.txt`.
 - **Database:** SQLite WAL via `TradeStore`; do not commit `*.db`, `*.db-wal`, or `*.db-shm`.
 - **Tests:** pytest 8+ with `pytest-asyncio` `asyncio_mode = "auto"`.
@@ -93,6 +93,11 @@ Use `.claude/rules/02-agent-synergy.md` as the single source of truth for specia
 - Structural understanding → `memory/ARCHITECTURE.md`.
 
 Agent memory under `.claude/agent-memory/` records only recurring patterns, stable project facts, and dated evidence; never secrets or one-off task details.
+
+## COMPACTION RULES (always preserve)
+- Keep: full project architecture, open requirements, key APIs/endpoints, current task stack, any user-defined rules
+- Summarize only: conversation history, debug logs, non-critical examples
+- Never drop: file paths, function signatures, TODOs marked CRITICAL
 
 ## Escalation Triggers
 

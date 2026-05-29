@@ -133,3 +133,33 @@ def test_validator_warns_on_command_skill_collision_and_unknown_skill_field(tmp_
     assert errors == []
     assert any("slash command name collides" in warning for warning in warnings)
     assert any("unknown skill frontmatter field" in warning for warning in warnings)
+
+
+def test_validator_accepts_arch_audit_extension_fields(tmp_path: Path) -> None:
+    validator = load_validator()
+    write_minimal_claude(tmp_path)
+    skill = tmp_path / ".claude" / "skills" / "sample-skill" / "SKILL.md"
+    skill.write_text(
+        "---\n"
+        "name: sample-skill\n"
+        "description: Sample skill.\n"
+        "disable-model-invocation: true\n"
+        "user-invocable: false\n"
+        "agent: Plan\n"
+        "---\nBody\n"
+    )
+
+    import json
+
+    settings = tmp_path / ".claude" / "settings.json"
+    data = json.loads(settings.read_text())
+    data["disableSkillShellExecution"] = False
+    data["awsAuthRefresh"] = "aws sso login --profile enterprise-devsecops"
+    settings.write_text(json.dumps(data))
+    sync_generated_inventory(tmp_path, validator)
+
+    errors, warnings = validator.validate(tmp_path)
+
+    assert errors == []
+    assert not any("unknown skill frontmatter field" in warning for warning in warnings)
+    assert not any("unknown settings top-level key" in warning for warning in warnings)

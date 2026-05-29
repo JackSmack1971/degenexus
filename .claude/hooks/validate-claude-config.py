@@ -97,6 +97,8 @@ ALLOWED_SETTINGS_KEYS = {
     "network",
     "plugins",
     "attribution",
+    "disableSkillShellExecution",
+    "awsAuthRefresh",
 }
 ALLOWED_SKILL_FIELDS = {
     "name",
@@ -109,6 +111,8 @@ ALLOWED_SKILL_FIELDS = {
     "context",
     "when_to_use",
     "argument-hint",
+    "user-invocable",
+    "agent",
 }
 FORBIDDEN_PERMISSION_MODES = {"bypassPermissions"}
 KNOWN_WRITE_CAPABLE_AGENTS = {"test-engineer"}
@@ -214,9 +218,13 @@ def validate_agent_skills_and_memory(root: Path, skills: set[str], errors: list[
         if fm.get("memory") == "project":
             memory_file = root / ".claude" / "agent-memory" / name / "MEMORY.md"
             lowercase_file = root / ".claude" / "agent-memory" / name / "memory.md"
-            if not memory_file.exists():
+            # Use iterdir() for case-sensitive filename checks — Path.exists() is case-insensitive
+            # on Windows NTFS, which causes false positives when MEMORY.md (correct) is present.
+            parent_dir = memory_file.parent
+            actual_names = {p.name for p in parent_dir.iterdir()} if parent_dir.exists() else set()
+            if "MEMORY.md" not in actual_names:
                 errors.append(f"missing project memory file: {repo_path(memory_file, root)}")
-            if lowercase_file.exists():
+            if "memory.md" in actual_names:
                 errors.append(f"lowercase project memory will not auto-load: {repo_path(lowercase_file, root)}")
         permission_mode = str(fm.get("permissionMode") or "")
         if permission_mode in FORBIDDEN_PERMISSION_MODES:
@@ -503,7 +511,9 @@ def validate_readme_inventory(root: Path, skills: set[str], errors: list[str]) -
     if not readme_path.exists():
         errors.append("missing .claude/README.md")
         return
-    readme = readme_path.read_text(errors="replace")
+    # Explicit UTF-8 so non-ASCII inventory content (e.g. em dash) matches the
+    # generator's output on all platforms, not just those with UTF-8 locale.
+    readme = readme_path.read_text(encoding="utf-8", errors="replace")
     inventories = [
         *(p.stem for p in (root / ".claude" / "agents").glob("*.md")),
         *skills,

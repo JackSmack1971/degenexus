@@ -29,6 +29,7 @@ Inside Claude Code, also run `/context`, `/memory`, `/agents`, `/skills`, `/hook
 | `.claude/agent-memory/` | Project-scoped specialist memory. Files must be `.claude/agent-memory/<agent>/MEMORY.md`. |
 | `.claude/hooks/` | Automation scripts for config validation, protected-file blocking, subagent/instruction audit logging, session/CWD reminders, evidence validation, and secret-file warnings. |
 | `.claude/local/` | Gitignored local hook output. |
+| `.claude/workflows/` | Deterministic orchestration scripts for project-local audit and improvement workflows. |
 
 <!-- BEGIN GENERATED CLAUDE INVENTORY -->
 
@@ -54,6 +55,7 @@ Inside Claude Code, also run `/context`, `/memory`, `/agents`, `/skills`, `/hook
 
 | Skill | Invocation mode | Owner agents |
 | --- | --- | --- |
+| `arch-audit-framework` | Manual-only | parent session |
 | `audit` | Manual-only | parent session |
 | `build` | Manual-only | parent session |
 | `claude-config-audit` | Manual-only | `docs-memory-curator`, `security-auditor`, `ship` |
