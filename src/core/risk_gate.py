@@ -17,13 +17,18 @@ if TYPE_CHECKING:
     from ..models.signals import TradeProposal, RiskDecision
 
 
-class HardRuleViolation(Exception):
-    """Raised when a trade proposal violates a hard risk rule."""
-
-    def __init__(self, rule: str, detail: str) -> None:
-        self.rule = rule
-        self.detail = detail
-        super().__init__(f"[HARD_RULE_VIOLATION] {rule}: {detail}")
+def _parse_ttl_seconds(raw: str) -> int:
+    try:
+        value = int(raw)
+    except (ValueError, TypeError):
+        raise ValueError(
+            f"RISK_DECISION_TTL_SECONDS must be a positive integer, got: {raw!r}"
+        )
+    if value <= 0:
+        raise ValueError(
+            f"RISK_DECISION_TTL_SECONDS must be positive, got: {value}"
+        )
+    return value
 
 
 @dataclass
@@ -45,6 +50,7 @@ class RiskLimits:
             max_consecutive_losses=int(os.getenv("MAX_CONSECUTIVE_LOSSES", "3")),
             min_risk_reward=float(os.getenv("MIN_RISK_REWARD", "1.5")),
             min_confidence=float(os.getenv("MIN_CONFIDENCE", "0.55")),
+            risk_decision_ttl_seconds=_parse_ttl_seconds(os.getenv("RISK_DECISION_TTL_SECONDS", "300")),
         )
 
 
