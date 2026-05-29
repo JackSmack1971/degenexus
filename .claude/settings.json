@@ -35,7 +35,17 @@
       "Bash(git push --force*)",
       "Bash(cat .env*)",
       "Bash(echo * > .env*)"
-    ]
+    ],
+    "allow": [
+      "Bash(ast-grep *)",
+      "Bash(git status*)"
+    ],
+    "ask": [
+      "Bash(npm install*)",
+      "Bash(pnpm install*)"
+    ],
+    "defaultMode": "plan",
+    "disableBypassPermissionsMode": "disable"
   },
   "hooks": {
     "PostToolUse": [
@@ -112,6 +122,15 @@
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect-sensitive-files.py\""
           }
         ]
+      },
+      {
+        "matcher": "Bash|Write|Edit|Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-tool-interceptor.sh\""
+          }
+        ]
       }
     ],
     "InstructionsLoaded": [
@@ -134,5 +153,32 @@
         ]
       }
     ]
+  },
+  "disableSkillShellExecution": false,
+  "sandbox": {
+    "filesystem": {
+      "denyRead": [
+        "**/.env*",
+        "**/*.pem",
+        "~/.ssh/**"
+      ],
+      "allowWrite": [
+        "${workspaceFolder}/**"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "registry.npmjs.org",
+        "api.github.com"
+      ]
+    }
+  },
+  "awsAuthRefresh": "aws sso login --profile enterprise-devsecops",
+  "env": {
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "16384",
+    "AST_L_MAX": "500",
+    "AST_L_MIN": "100",
+    "AST_OVERLAP": "50",
+    "ENABLE_PROMPT_CACHING_1H": "1"
   }
 }
