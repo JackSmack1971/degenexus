@@ -511,7 +511,9 @@ def validate_readme_inventory(root: Path, skills: set[str], errors: list[str]) -
     if not readme_path.exists():
         errors.append("missing .claude/README.md")
         return
-    readme = readme_path.read_text(errors="replace")
+    # Explicit UTF-8 so non-ASCII inventory content (e.g. em dash) matches the
+    # generator's output on all platforms, not just those with UTF-8 locale.
+    readme = readme_path.read_text(encoding="utf-8", errors="replace")
     inventories = [
         *(p.stem for p in (root / ".claude" / "agents").glob("*.md")),
         *skills,
