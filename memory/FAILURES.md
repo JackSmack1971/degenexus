@@ -1,5 +1,17 @@
 # FAILURES
 
+## F-014a — 2026-05-29 — RiskLimits.from_env() silent omission of risk_decision_ttl_seconds
+
+- **Failure mode:** `RiskLimits.from_env()` constructed with 6 params; `risk_decision_ttl_seconds` always used dataclass default (300 s) regardless of env variable.
+- **Physical evidence:** `grep "RISK_DECISION_TTL_SECONDS" src/core/risk_gate.py` returned 0 results on `360fccf`. `import os; os.environ["RISK_DECISION_TTL_SECONDS"]="60"; RiskLimits.from_env().risk_decision_ttl_seconds` printed 300.
+- **Root cause:** Field added to dataclass without a corresponding `os.getenv()` call in `from_env()`.
+- **Blast radius:** TTL cannot be tuned through env; approval windows cannot be shortened for fast markets without source edits.
+- **Issue:** #139
+- **Fix:** Added `risk_decision_ttl_seconds=int(os.getenv("RISK_DECISION_TTL_SECONDS", "300")),` to `from_env()`.
+- **Never repeat:** After adding a field to `RiskLimits`, always add the corresponding `os.getenv()` call to `from_env()` in the same commit.
+
+---
+
 ## F-015 — 2026-05-29 — HardRuleViolation dead code creates misleading API contract
 
 - **Failure mode:** `HardRuleViolation(Exception)` defined in `risk_gate.py` but never raised. Docstring claims "Raised when a trade proposal violates a hard risk rule" — misleading because `check_hard_rules()` returns `list[str]`, not raises.

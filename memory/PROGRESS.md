@@ -1,5 +1,31 @@
 # PROGRESS
 
+## Session: 2026-05-29 (codex/issue-139) — FDD+FSV COMPLETE
+
+### Baseline
+- Branch: `codex/issue-139` from `360fccf` (pre-fix)
+- Issue: #139 — `RiskLimits.from_env()` silently ignores `risk_decision_ttl_seconds`
+- Pre-fix: `from_env()` constructed `RiskLimits` with 6 params; `risk_decision_ttl_seconds` always defaulted to 300 regardless of env
+- Pre-fix test count: 419 passed (no `TestRiskLimitsFromEnv` class)
+
+### Fix Applied
+- `src/core/risk_gate.py`: Added `risk_decision_ttl_seconds=int(os.getenv("RISK_DECISION_TTL_SECONDS", "300")),` to `from_env()` constructor call
+- `tests/test_risk_gate.py`: Added `from src.core.risk_gate import RiskLimits` import and `TestRiskLimitsFromEnv` class with 2 regression tests (env override + default)
+
+### Post-FSV
+- `python3 -m compileall -q src/` → pass
+- `python3 -m pyflakes src/` → pass
+- `python3 -m ruff check src/ tests/` → pass
+- `python3 -m mypy src/` → success, 35 source files
+- `python3 -m pytest tests/test_risk_gate.py -v` → 27 passed (2 new TTL tests pass)
+- `python3 -m pytest tests/ --cov=src --cov-fail-under=90` → all pass, TOTAL ≥90%
+
+### Memory
+- `memory/DECISIONS.md`: ADR-009 added
+- `memory/FAILURES.md`: F-014a added
+
+---
+
 ## Session: 2026-05-29 (codex/issue-140) — FDD+FSV COMPLETE
 
 ### Baseline
