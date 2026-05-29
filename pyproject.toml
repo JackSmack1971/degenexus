@@ -31,5 +31,5 @@ omit = [
 ignore_missing_imports = false
 
 [[tool.mypy.overrides]]
-module = ["ta", "ta.*", "yfinance", "yfinance.*", "anthropic", "openai", "openai.*", "langchain", "langchain.*", "langchain_anthropic", "langchain_anthropic.*"]
+module = ["ta", "ta.*", "yfinance", "yfinance.*", "anthropic", "openai", "openai.*"]
 ignore_missing_imports = true
