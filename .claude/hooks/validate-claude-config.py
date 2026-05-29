@@ -97,6 +97,8 @@ ALLOWED_SETTINGS_KEYS = {
     "network",
     "plugins",
     "attribution",
+    "disableSkillShellExecution",
+    "awsAuthRefresh",
 }
 ALLOWED_SKILL_FIELDS = {
     "name",
@@ -109,6 +111,8 @@ ALLOWED_SKILL_FIELDS = {
     "context",
     "when_to_use",
     "argument-hint",
+    "user-invocable",
+    "agent",
 }
 FORBIDDEN_PERMISSION_MODES = {"bypassPermissions"}
 KNOWN_WRITE_CAPABLE_AGENTS = {"test-engineer"}
