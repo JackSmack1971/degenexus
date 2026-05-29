@@ -1,0 +1,18 @@
+{
+  "session": "claude/degenexus-forensic-impl-eW5PT",
+  "date": "2026-05-28",
+  "issue": 105,
+  "branch": "codex/issue-105",
+  "branched_from": "codex/issue-101",
+  "pre_fix_head": "37d37a3",
+  "root_cause": "CI --cov-fail-under=50 allowed coverage to drop from 98% to 51% without failing; documented 90% target was not enforced",
+  "fix_summary": "Changed --cov-fail-under=50 to --cov-fail-under=90 in ci.yml; branches from codex/issue-101 which fixes indicators.py from 87% to 100%",
+  "files_changed": [".github/workflows/ci.yml"],
+  "dependency": "codex/issue-101 (indicators.py 87%→100% must be merged first or this PR stacks on top)",
+  "pre_threshold": 50,
+  "post_threshold": 90,
+  "actual_coverage": 98,
+  "tests_passed": 418,
+  "forbidden_actions_performed": false,
+  "completion_verdict": "pass"
+}

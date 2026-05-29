@@ -52,7 +52,7 @@ jobs:
         run: python -m pyflakes src/
 
       - name: Run tests with coverage
-        run: pytest tests/ --timeout=30 --cov=src --cov-report=term-missing --cov-fail-under=50
+        run: pytest tests/ --timeout=30 --cov=src --cov-report=term-missing --cov-fail-under=90
 
       - name: Audit Python dependencies
         run: pip-audit -r requirements.txt

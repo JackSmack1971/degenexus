@@ -1,0 +1,18 @@
+{
+  "session": "claude/degenexus-forensic-impl-eW5PT",
+  "date": "2026-05-28",
+  "issue": 101,
+  "branch": "codex/issue-101",
+  "pre_fix_head": "e572bc6",
+  "root_cause": "4 tests guarded success paths with pytest.skip instead of sys.modules injection; MACD and EMA had no happy-path tests at all",
+  "fix_summary": "Converted 4 pytest.skip guards to sys.modules injection; added TestMACDSuccessPath (3 tests) and TestEMASuccessPath (3 tests)",
+  "files_changed": ["tests/test_indicators.py"],
+  "pre_coverage": "87% (11 missed lines: 48-49, 57-60, 77, 103-104, 115-116)",
+  "post_coverage": "100% (0 missed lines)",
+  "tests_before": 408,
+  "tests_after": 418,
+  "ruff": "CLEAN",
+  "pyflakes": "CLEAN",
+  "forbidden_actions_performed": false,
+  "completion_verdict": "pass"
+}

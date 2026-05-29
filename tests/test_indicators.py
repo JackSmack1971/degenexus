@@ -143,32 +143,34 @@ class TestVolumeRatio:
 
 class TestIndicatorNaNHandling:
     def test_fewer_bars_than_rsi_window_returns_none(self):
-        """With fewer than 14 bars, RSI cannot be computed; should return None."""
-        engine = IndicatorEngine()
-        # 5 bars is fewer than RSI window (14)
-        bars = _make_bars(5)
-        try:
-            import ta  # noqa
-        except (ImportError, Exception):
-            pytest.skip("ta library not available")
+        """With fewer than 14 bars, RSI iloc[-1] is NaN → should return None."""
         import pandas as pd
+        engine = IndicatorEngine()
+        bars = _make_bars(5)
         closes = pd.Series([b.close for b in bars])
-        result = engine._rsi(closes)
-        # With only 5 bars, RSI iloc[-1] will be NaN → None
+        nan_series = pd.Series([float("nan")] * len(closes))
+        mock_rsi_inst = MagicMock()
+        mock_rsi_inst.rsi.return_value = nan_series
+        fake_mom = _make_fake_ta_momentum()
+        fake_mom.RSIIndicator = MagicMock(return_value=mock_rsi_inst)
+        with _ta_patch(mom=fake_mom):
+            result = engine._rsi(closes)
         assert result.get("rsi_14") is None
 
     def test_fewer_bars_than_bb_window_returns_none(self):
-        """With fewer than 20 bars, Bollinger Bands cannot be computed."""
+        """With fewer than 20 bars, Bollinger Bands values are NaN → should return None."""
+        import pandas as pd
         engine = IndicatorEngine()
         bars = _make_bars(10)
-        try:
-            import ta  # noqa
-        except (ImportError, Exception):
-            pytest.skip("ta library not available")
-        import pandas as pd
         closes = pd.Series([b.close for b in bars])
-        result = engine._bollinger(closes)
-        # All BB values should be None with insufficient bars
+        nan_series = pd.Series([float("nan")] * len(closes))
+        mock_bb = MagicMock()
+        mock_bb.bollinger_hband.return_value = nan_series
+        mock_bb.bollinger_lband.return_value = nan_series
+        mock_bb.bollinger_mavg.return_value = nan_series
+        fake_vol = _make_fake_ta_volatility(bb_factory=MagicMock(return_value=mock_bb))
+        with _ta_patch(vol=fake_vol):
+            result = engine._bollinger(closes)
         assert result.get("bb_upper") is None
         assert result.get("bb_lower") is None
 
@@ -274,30 +276,64 @@ class TestATRSuccessPath:
     """Lines 115-116 — ATR valid computation with sufficient bars."""
 
     def test_atr_with_30_bars_returns_float(self):
-        try:
-            import ta  # noqa
-        except (ImportError, Exception):
-            pytest.skip("ta library not available")
+        """ATR with valid bars returns a float via sys.modules injection."""
         import pandas as pd
         engine = IndicatorEngine()
         bars = _make_bars(30)
         highs = pd.Series([b.high for b in bars])
         lows = pd.Series([b.low for b in bars])
         closes = pd.Series([b.close for b in bars])
-        result = engine._atr(highs, lows, closes)
+        valid_series = pd.Series([0.5] * len(bars))
+        mock_atr_inst = MagicMock()
+        mock_atr_inst.average_true_range.return_value = valid_series
+        fake_vol = _make_fake_ta_volatility()
+        fake_vol.AverageTrueRange = MagicMock(return_value=mock_atr_inst)
+        with _ta_patch(vol=fake_vol):
+            result = engine._atr(highs, lows, closes)
         assert "atr_14" in result
-        assert result["atr_14"] is not None
+        assert result["atr_14"] == pytest.approx(0.5)
         assert isinstance(result["atr_14"], float)
 
     def test_compute_all_with_sufficient_bars_covers_atr_path(self):
-        """compute_all with 30 bars exercises the ATR and all other success paths."""
-        try:
-            import ta  # noqa
-        except (ImportError, Exception):
-            pytest.skip("ta library not available")
+        """compute_all exercises all success paths via full sys.modules injection."""
+        import pandas as pd
         engine = IndicatorEngine()
         bars = _make_bars(30)
-        result = engine.compute_all(bars)
+        n = len(bars)
+
+        rsi_series = pd.Series([55.0] * n)
+        mock_rsi_inst = MagicMock()
+        mock_rsi_inst.rsi.return_value = rsi_series
+        fake_mom = _make_fake_ta_momentum()
+        fake_mom.RSIIndicator = MagicMock(return_value=mock_rsi_inst)
+
+        macd_series = pd.Series([1.0] * n)
+        mock_macd_inst = MagicMock()
+        mock_macd_inst.macd.return_value = macd_series
+        mock_macd_inst.macd_signal.return_value = macd_series
+        mock_macd_inst.macd_diff.return_value = macd_series
+        ema_series = pd.Series([100.0] * n)
+        mock_ema_inst = MagicMock()
+        mock_ema_inst.ema_indicator.return_value = ema_series
+        fake_trend = _make_fake_ta_trend()
+        fake_trend.MACD = MagicMock(return_value=mock_macd_inst)
+        fake_trend.EMAIndicator = MagicMock(return_value=mock_ema_inst)
+
+        bb_series = pd.Series([105.0] * n)
+        bb_lower = pd.Series([95.0] * n)
+        bb_mid = pd.Series([100.0] * n)
+        mock_bb_inst = MagicMock()
+        mock_bb_inst.bollinger_hband.return_value = bb_series
+        mock_bb_inst.bollinger_lband.return_value = bb_lower
+        mock_bb_inst.bollinger_mavg.return_value = bb_mid
+        atr_series = pd.Series([0.5] * n)
+        mock_atr_inst = MagicMock()
+        mock_atr_inst.average_true_range.return_value = atr_series
+        fake_vol = _make_fake_ta_volatility(bb_factory=MagicMock(return_value=mock_bb_inst))
+        fake_vol.AverageTrueRange = MagicMock(return_value=mock_atr_inst)
+
+        with _ta_patch(mom=fake_mom, trend=fake_trend, vol=fake_vol):
+            result = engine.compute_all(bars)
         assert isinstance(result, dict)
         assert "atr_14" in result
         assert "rsi_14" in result
@@ -345,3 +381,113 @@ class TestRSIExceptionFallback:
         with _ta_patch(vol=fake_vol):
             result = engine._atr(highs, lows, closes)
         assert result == {"atr_14": None}
+
+
+class TestMACDSuccessPath:
+    """Lines 57-60 — MACD valid computation via sys.modules injection."""
+
+    def test_macd_returns_valid_values(self):
+        import pandas as pd
+        engine = IndicatorEngine()
+        closes = pd.Series([100.0 + i * 0.1 for i in range(30)])
+        macd_series = pd.Series([1.5] * len(closes))
+        signal_series = pd.Series([1.2] * len(closes))
+        hist_series = pd.Series([0.3] * len(closes))
+        mock_macd_inst = MagicMock()
+        mock_macd_inst.macd.return_value = macd_series
+        mock_macd_inst.macd_signal.return_value = signal_series
+        mock_macd_inst.macd_diff.return_value = hist_series
+        fake_trend = _make_fake_ta_trend()
+        fake_trend.MACD = MagicMock(return_value=mock_macd_inst)
+        with _ta_patch(trend=fake_trend):
+            result = engine._macd(closes)
+        assert result["macd_line"] == pytest.approx(1.5)
+        assert result["macd_signal"] == pytest.approx(1.2)
+        assert result["macd_histogram"] == pytest.approx(0.3)
+
+    def test_macd_nan_last_returns_none(self):
+        """MACD last value NaN → all fields None."""
+        import pandas as pd
+        engine = IndicatorEngine()
+        closes = pd.Series([100.0] * 30)
+        nan_series = pd.Series([float("nan")] * len(closes))
+        mock_macd_inst = MagicMock()
+        mock_macd_inst.macd.return_value = nan_series
+        mock_macd_inst.macd_signal.return_value = nan_series
+        mock_macd_inst.macd_diff.return_value = nan_series
+        fake_trend = _make_fake_ta_trend()
+        fake_trend.MACD = MagicMock(return_value=mock_macd_inst)
+        with _ta_patch(trend=fake_trend):
+            result = engine._macd(closes)
+        assert result["macd_line"] is None
+        assert result["macd_signal"] is None
+        assert result["macd_histogram"] is None
+
+    def test_macd_empty_series_returns_none(self):
+        """MACD returning empty series → all fields None."""
+        import pandas as pd
+        engine = IndicatorEngine()
+        closes = pd.Series([100.0] * 10)
+        empty_series = pd.Series([], dtype=float)
+        mock_macd_inst = MagicMock()
+        mock_macd_inst.macd.return_value = empty_series
+        mock_macd_inst.macd_signal.return_value = empty_series
+        mock_macd_inst.macd_diff.return_value = empty_series
+        fake_trend = _make_fake_ta_trend()
+        fake_trend.MACD = MagicMock(return_value=mock_macd_inst)
+        with _ta_patch(trend=fake_trend):
+            result = engine._macd(closes)
+        assert result["macd_line"] is None
+        assert result["macd_signal"] is None
+        assert result["macd_histogram"] is None
+
+
+class TestEMASuccessPath:
+    """Lines 103-104 — EMA valid computation via sys.modules injection."""
+
+    def test_ema_returns_valid_values(self):
+        import pandas as pd
+        engine = IndicatorEngine()
+        closes = pd.Series([100.0 + i * 0.1 for i in range(60)])
+        ema20_series = pd.Series([102.0] * len(closes))
+        ema50_series = pd.Series([101.0] * len(closes))
+        mock_ema20 = MagicMock()
+        mock_ema20.ema_indicator.return_value = ema20_series
+        mock_ema50 = MagicMock()
+        mock_ema50.ema_indicator.return_value = ema50_series
+        fake_trend = _make_fake_ta_trend()
+        fake_trend.EMAIndicator = MagicMock(side_effect=[mock_ema20, mock_ema50])
+        with _ta_patch(trend=fake_trend):
+            result = engine._ema(closes)
+        assert result["ema_20"] == pytest.approx(102.0)
+        assert result["ema_50"] == pytest.approx(101.0)
+
+    def test_ema_nan_last_returns_none(self):
+        """EMA last value NaN → both fields None."""
+        import pandas as pd
+        engine = IndicatorEngine()
+        closes = pd.Series([100.0] * 60)
+        nan_series = pd.Series([float("nan")] * len(closes))
+        mock_ema = MagicMock()
+        mock_ema.ema_indicator.return_value = nan_series
+        fake_trend = _make_fake_ta_trend()
+        fake_trend.EMAIndicator = MagicMock(return_value=mock_ema)
+        with _ta_patch(trend=fake_trend):
+            result = engine._ema(closes)
+        assert result["ema_20"] is None
+        assert result["ema_50"] is None
+
+    def test_ema_empty_series_returns_none(self):
+        """EMA returning empty series → both fields None."""
+        import pandas as pd
+        engine = IndicatorEngine()
+        closes = pd.Series([100.0] * 20)
+        empty_series = pd.Series([], dtype=float)
+        mock_ema = MagicMock()
+        mock_ema.ema_indicator.return_value = empty_series
+        fake_trend = _make_fake_ta_trend()
+        fake_trend.EMAIndicator = MagicMock(return_value=mock_ema)
+        with _ta_patch(trend=fake_trend):
+            result = engine._ema(closes)
+        assert result["ema_20"] is None
+        assert result["ema_50"] is None
