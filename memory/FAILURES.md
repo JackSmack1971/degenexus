@@ -1,5 +1,15 @@
 # FAILURES
 
+## F-014 — 2026-05-29 — Open forensic audit drift after issue #105/#106 remediation
+
+- **Failure mode:** Six source:agent issues (#137-#142) remained open with no open PRs: stale coverage docs, stale mypy overrides, non-configurable risk decision TTL, dead `HardRuleViolation` API, incorrect README module paths, and missing PR templates referenced by AGENTS.md.
+- **Physical evidence:** GitHub REST API returned open issues #137-#142 and zero open PRs; local SoT scans found `--cov-fail-under=50` in AGENTS.md, `langchain` mypy overrides in `pyproject.toml`, missing `RISK_DECISION_TTL_SECONDS` in `RiskLimits.from_env()`, `HardRuleViolation` only defined/exported, stale README paths, and absent `.github/PULL_REQUEST_TEMPLATE/` directory.
+- **Root cause:** Prior issue-specific fixes updated CI/dependencies/runtime policy but did not propagate the state delta to adjacent contributor docs, type-checker config, and GitHub workflow scaffolding.
+- **Blast radius:** Contributor onboarding and PR creation could follow stale instructions; risk TTL could not be tuned through supported env configuration; static type policy silently retained removed dependency waivers.
+- **Issues:** #137, #138, #139, #140, #141, #142
+- **Fix:** Synchronize docs/config/templates with current SoT, add env-backed TTL mapping with tests, and remove the unused exception contract.
+- **Never repeat:** After resolving a forensic issue that changes CI thresholds, dependencies, or governance workflows, grep adjacent docs/config/templates and update memory in the same PR.
+
 ## F-011 — 2026-05-28 — IndicatorEngine success-path coverage 87% regression from #55
 
 - **Failure mode:** `src/data/indicators.py` is at 87% coverage (11 missed lines: 48-49, 57-60, 77, 103-104, 115-116) — below 90% threshold. Regression from closed issue #55.
