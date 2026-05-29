@@ -1,5 +1,17 @@
 # FAILURES
 
+## F-019 — 2026-05-29 — AGENTS.md referenced phantom PR templates
+
+- **Failure mode:** AGENTS.md line 23 instructed contributors to use `.github/PULL_REQUEST_TEMPLATE/default.md` or `bug-fix.md`, but neither file nor the directory existed. GitHub showed blank PR bodies; FSV checklist requirements were not enforced at PR creation.
+- **Physical evidence:** `ls .github/PULL_REQUEST_TEMPLATE/` → `No such file or directory`; `grep "PULL_REQUEST_TEMPLATE" AGENTS.md` → phantom reference confirmed.
+- **Root cause:** Contributor governance doc written ahead of template creation; the referenced files were never created.
+- **Blast radius:** Every PR was created with a blank body; contributors received no automatic reminder of FSV requirements, edge cases, or memory update protocol.
+- **Issue:** #142
+- **Fix:** Created `.github/PULL_REQUEST_TEMPLATE/default.md` and `.github/PULL_REQUEST_TEMPLATE/bug-fix.md` with FSV and FDD checklists.
+- **Never repeat:** When adding governance doc references to template files, create the templates in the same PR as the documentation change.
+
+---
+
 ## F-018 — 2026-05-29 — README.md Good First Contributions lists non-existent module paths
 
 - **Failure mode:** README.md line 160 listed `src/indicators.py`, `src/performance.py`, `src/context_injector.py` as targets for contributor coverage improvements. None of these paths exist; the real files are in `src/data/` and `src/memory/` sub-packages.

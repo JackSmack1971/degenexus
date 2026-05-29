@@ -1,5 +1,29 @@
 # PROGRESS
 
+## Session: 2026-05-29 (codex/issue-142) — FDD+FSV COMPLETE
+
+### Baseline
+- Branch: `codex/issue-142` from `360fccf` (pre-fix)
+- Issue: #142 — AGENTS.md references `.github/PULL_REQUEST_TEMPLATE/` that does not exist
+- Pre-fix: `ls .github/` showed only `workflows/`; no `PULL_REQUEST_TEMPLATE/` directory
+
+### Fix Applied
+- Created `.github/PULL_REQUEST_TEMPLATE/default.md` — FSV checklist template (summary, FDD evidence, PRE/POST state, edge cases, memory updates)
+- Created `.github/PULL_REQUEST_TEMPLATE/bug-fix.md` — bug-specific template (trigger, root cause, reproduction evidence, regression proof)
+
+### Post-FSV
+- `python3 -m compileall -q src/` → pass
+- `python3 -m ruff check src/ tests/` → pass
+- `python3 -m mypy src/` → success, 35 source files
+- `python3 -m pytest tests/ -q` → 419 passed, 0 failed
+- `ls .github/PULL_REQUEST_TEMPLATE/` → `default.md bug-fix.md`
+
+### Memory
+- `memory/DECISIONS.md`: ADR-010e added
+- `memory/FAILURES.md`: F-019 added
+
+---
+
 ## Session: 2026-05-29 (codex/issue-141) — FDD+FSV COMPLETE
 
 ### Baseline
