@@ -1,5 +1,48 @@
 # PROGRESS
 
+## Session: 2026-05-29 (claude/system-audit-github-issues-QMV5G) — SYSTEM-WIDE AUDIT COMPLETE
+
+### Audit Baseline
+- Branch: `claude/system-audit-github-issues-QMV5G`, HEAD: `644c748476eb191115c419e0c4c059722c4b4f03`
+- Git status: CLEAN
+- Open issues at start: 0
+- Open PRs at start: 0
+- Tests: **419 passed**, 0 failed
+- Coverage: **TOTAL 98%**
+- ruff: CLEAN | mypy: CLEAN (35 files) | radon: A (2.94) | pip-audit: No vulnerabilities
+- Claude config validator: PASS
+
+### 16-Surface Coverage
+
+All 16 audit surfaces inspected: source, tests/infra, CI/CD, deps/lockfiles, build/release/package/deploy config, security code/config, secrets/env, auth/authz/input validation/trust boundaries, storage/migrations/schemas/persistence, APIs/CLIs/SDKs/integrations, errors/logging/observability, performance/scalability/concurrency, architecture/coupling/duplication/dead code, local DX, README/docs/examples, license/security policy/contributing/templates.
+
+### Anomalies Found and Issue Map
+
+| ID | Anomaly | Issue | Severity |
+|----|---------|-------|----------|
+| D1 | AGENTS.md documents `--cov-fail-under=50` but CI enforces 90% (stale after #105 merge) | [#137](https://github.com/JackSmack1971/degenexus/issues/137) | Low |
+| C1 | pyproject.toml mypy overrides include removed langchain/langchain_anthropic (stale after #106 merge) | [#138](https://github.com/JackSmack1971/degenexus/issues/138) | Low |
+| R1 | `RiskLimits.from_env()` omits `risk_decision_ttl_seconds` — TTL not env-configurable | [#139](https://github.com/JackSmack1971/degenexus/issues/139) | Medium |
+| X1 | `HardRuleViolation` exception defined but never raised anywhere (dead code, lines 24-26 always 0% in coverage) | [#140](https://github.com/JackSmack1971/degenexus/issues/140) | Low |
+| D2 | README.md "Good First Contributions" lists wrong module paths (missing sub-package prefix) | [#141](https://github.com/JackSmack1971/degenexus/issues/141) | Low |
+| D3 | AGENTS.md references `.github/PULL_REQUEST_TEMPLATE/` that doesn't exist | [#142](https://github.com/JackSmack1971/degenexus/issues/142) | Low |
+
+### Investigated but Not Confirmed (no issue filed)
+- `orchestrator.py:304` `hasattr(self, "portfolio_manager")` guard — legitimate init-order guard (confirmed prior session)
+- `main.py:151` `os.getenv("ANTHROPIC_API_KEY")` presence check — accepted pattern per CLAUDE.md SoT table
+- `execution_agent.py:54-60` uncovered conditioned re-validation fail path — defensive code; theoretically unreachable in synchronous execution
+- `context_injector.py:79-80, 98` uncovered conditional branches — above 90% threshold, stats-state dependent
+- `openrouter_client.py:10-11` ImportError fallback — above 90% threshold, install-state dependent
+
+### Memory Mutations This Session
+- `memory/agent_manifests/audit-20260529-session.json`: Created with completion_verdict=pass
+- `memory/PROGRESS.md`: This session entry added
+
+### Completion Verdict
+PASS — 6 confirmed findings, 6 issues created (#137-#142); 0 duplicates; 0 blocked; all 16 audit surfaces inspected; all quality gates clean.
+
+---
+
 ## Session: 2026-05-28 (claude/degenexus-forensic-impl-eW5PT) — IMPLEMENTATION+PR PHASE IN PROGRESS
 ## Session: 2026-05-28 (claude/degenexus-forensic-impl-eW5PT) — IMPLEMENTATION+PR PHASE COMPLETE
 

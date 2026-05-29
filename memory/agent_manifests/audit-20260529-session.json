@@ -1,0 +1,80 @@
+{
+  "phase": "audit",
+  "session": "claude/system-audit-github-issues-QMV5G",
+  "repo": "JackSmack1971/degenexus",
+  "branch": "claude/system-audit-github-issues-QMV5G",
+  "head_sha": "644c748476eb191115c419e0c4c059722c4b4f03",
+  "date": "2026-05-29",
+  "instructions": [
+    "Read CLAUDE.md, FAILURES.md, PROGRESS.md, ARCHITECTURE.md before auditing",
+    "Confirmed 0 open issues at audit start",
+    "All 10 audit surfaces inspected",
+    "Create exactly one GitHub issue per confirmed non-duplicate finding"
+  ],
+  "baseline": {
+    "tests_passing": 419,
+    "tests_skipped": 0,
+    "total_coverage_pct": 98,
+    "ruff": "CLEAN",
+    "mypy": "CLEAN (35 files)",
+    "pyflakes": "NOT_INSTALLED (skipped)",
+    "radon_avg": "A (2.94)",
+    "pip_audit": "No known vulnerabilities",
+    "claude_config_validator": "claude config validation ok"
+  },
+  "surfaces": [
+    "source",
+    "tests_infra",
+    "ci_cd",
+    "deps_lockfiles",
+    "build_release_config",
+    "security_code_config",
+    "secrets_env",
+    "auth_input_validation_trust_boundaries",
+    "storage_persistence",
+    "apis_integrations",
+    "errors_logging",
+    "performance_concurrency",
+    "architecture_dead_code",
+    "local_dx",
+    "readme_docs",
+    "license_security_contributing_templates"
+  ],
+  "commands_run": [
+    {"cmd": "git branch --show-current && git rev-parse HEAD && git status --short", "status": "PASS"},
+    {"cmd": "python3 -m compileall -q src/", "status": "PASS"},
+    {"cmd": "python3 -m ruff check src/ tests/", "status": "PASS (All checks passed)"},
+    {"cmd": "python3 -m mypy src/", "status": "PASS (no issues in 35 source files)"},
+    {"cmd": "python3 -m pytest tests/ -q", "status": "PASS (419 passed)"},
+    {"cmd": "python3 -m pytest tests/ --cov=src --cov-report=term -q", "status": "PASS (98% total)"},
+    {"cmd": "pip-audit -r requirements.txt", "status": "PASS (No known vulnerabilities)"},
+    {"cmd": "radon cc src/ -a", "status": "PASS (A average 2.94)"},
+    {"cmd": "python3 .claude/hooks/validate-claude-config.py", "status": "PASS (claude config validation ok)"},
+    {"cmd": "grep -rn 'HardRuleViolation' src/ tests/", "status": "PASS (confirms dead code)"},
+    {"cmd": "find src/ -name 'indicators.py' -o -name 'performance.py' -o -name 'context_injector.py'", "status": "PASS (confirms wrong paths in README)"},
+    {"cmd": "ls .github/PULL_REQUEST_TEMPLATE/", "status": "FAIL (directory does not exist)"},
+    {"cmd": "grep 'cov-fail-under' AGENTS.md .github/workflows/ci.yml", "status": "PASS (confirms mismatch)"},
+    {"cmd": "grep 'langchain' requirements.txt src/", "status": "PASS (confirms no langchain references)"}
+  ],
+  "issues_created": [
+    {"number": 137, "title": "[AUDIT][DOCS][P3] AGENTS.md documents --cov-fail-under=50 but CI enforces 90%", "url": "https://github.com/JackSmack1971/degenexus/issues/137", "severity": "Low"},
+    {"number": 138, "title": "[AUDIT][CONFIG][P3] pyproject.toml mypy overrides include removed langchain/langchain_anthropic packages", "url": "https://github.com/JackSmack1971/degenexus/issues/138", "severity": "Low"},
+    {"number": 139, "title": "[AUDIT][RISK][P2] RiskLimits.from_env() silently ignores risk_decision_ttl_seconds — TTL not env-configurable", "url": "https://github.com/JackSmack1971/degenexus/issues/139", "severity": "Medium"},
+    {"number": 140, "title": "[AUDIT][DEAD CODE][P3] HardRuleViolation exception class is defined but never raised", "url": "https://github.com/JackSmack1971/degenexus/issues/140", "severity": "Low"},
+    {"number": 141, "title": "[AUDIT][DOCS][P3] README.md \"Good First Contributions\" lists incorrect module paths", "url": "https://github.com/JackSmack1971/degenexus/issues/141", "severity": "Low"},
+    {"number": 142, "title": "[AUDIT][DX][P3] AGENTS.md references .github/PULL_REQUEST_TEMPLATE/ that does not exist", "url": "https://github.com/JackSmack1971/degenexus/issues/142", "severity": "Low"}
+  ],
+  "issues_updated": [],
+  "duplicates": [],
+  "blocked": [],
+  "investigated_not_filed": [
+    "orchestrator.py:304 hasattr guard — confirmed legitimate init-order guard (prior session)",
+    "main.py os.getenv(ANTHROPIC_API_KEY) presence check — accepted pattern per CLAUDE.md SoT",
+    "execution_agent.py lines 54-60 uncovered (conditioned re-validation fail path) — defensive code, theoretically unreachable in synchronous execution",
+    "context_injector.py lines 79-80, 98 uncovered — conditional branches requiring specific stats state, above 90% threshold",
+    "openrouter_client.py lines 10-11 uncovered — ImportError fallback, above 90% threshold"
+  ],
+  "verdict": "pass",
+  "forbidden_actions_performed": false,
+  "completion_verdict": "PASS — 6 confirmed findings, 6 issues created (#137-#142); 0 duplicates; 0 blocked; all 16 audit surfaces inspected; all quality gates clean on HEAD 644c748"
+}
