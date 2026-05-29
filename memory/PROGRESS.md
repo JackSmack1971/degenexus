@@ -1,5 +1,29 @@
 # PROGRESS
 
+## Session: 2026-05-29 (codex/issue-137) — FDD+FSV COMPLETE
+
+### Baseline
+- Branch: `codex/issue-137` from `360fccf` (pre-fix)
+- Issue: #137 — AGENTS.md documents `--cov-fail-under=50` but CI enforces 90%
+- Pre-fix: `AGENTS.md:20` stated `--cov-fail-under=50`; CI (`ci.yml:55`) enforces `--cov-fail-under=90` since PR #125
+- Pre-fix evidence: `grep "cov-fail-under" AGENTS.md .github/workflows/ci.yml` showed mismatch
+
+### Fix Applied
+- `AGENTS.md:20`: Replaced `--cov-fail-under=50`; `CLAUDE.md` sets the stronger team target at 90%+` with `--cov-fail-under=90`, matching the 90%+ target in `CLAUDE.md``
+
+### Post-FSV
+- `python3 -m compileall -q src/` → pass
+- `python3 -m ruff check src/ tests/` → pass
+- `python3 -m mypy src/` → success, 35 source files
+- `python3 -m pytest tests/ -q` → 419 passed, 0 failed
+- `grep "cov-fail-under" AGENTS.md .github/workflows/ci.yml` → both show 90%
+
+### Memory
+- `memory/DECISIONS.md`: ADR-010b added
+- `memory/FAILURES.md`: F-016 added
+
+---
+
 ## Session: 2026-05-29 (claude/forensic-pr-review-IS8sA) — FORENSIC PR REVIEW COMPLETE
 
 ### Session Baseline

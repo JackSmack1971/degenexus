@@ -1,5 +1,16 @@
 # DECISIONS
 
+## ADR-010b — Synchronize AGENTS.md coverage gate with CI enforcement (codex/issue-137)
+
+**Date:** 2026-05-29
+**Issue:** #137
+**Context:** PR #125 raised `--cov-fail-under` from 50 to 90 in CI. AGENTS.md was not updated in that PR, leaving contributors with stale documentation stating 50% is acceptable.
+**Decision:** Update AGENTS.md line 20 to state `--cov-fail-under=90` and remove the parenthetical about "CLAUDE.md sets the stronger target" since CI now directly enforces 90%.
+**Alternatives rejected:** No change (perpetuates contributor confusion); reducing CI threshold to 50 (would weaken the quality gate that was intentionally raised).
+**Edge cases covered:** `grep "cov-fail-under" AGENTS.md ci.yml` shows consistent 90%.
+
+---
+
 ## ADR-001 — sys.modules injection as primary CI fix for ta-dependent tests (codex/issue-66)
 
 **Date:** 2026-05-27  
