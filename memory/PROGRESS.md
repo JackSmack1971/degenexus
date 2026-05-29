@@ -23,6 +23,62 @@
 
 ---
 
+## Session: 2026-05-29 (codex/issue-137) — FDD+FSV COMPLETE
+
+### Baseline
+- Branch: `codex/issue-137` from `360fccf` (pre-fix)
+- Issue: #137 — AGENTS.md documents `--cov-fail-under=50` but CI enforces 90%
+- Pre-fix: `AGENTS.md:20` stated `--cov-fail-under=50`; CI (`ci.yml:55`) enforces `--cov-fail-under=90` since PR #125
+- Pre-fix evidence: `grep "cov-fail-under" AGENTS.md .github/workflows/ci.yml` showed mismatch
+
+### Fix Applied
+- `AGENTS.md:20`: Replaced `--cov-fail-under=50`; `CLAUDE.md` sets the stronger team target at 90%+` with `--cov-fail-under=90`, matching the 90%+ target in `CLAUDE.md``
+
+### Post-FSV
+- `python3 -m compileall -q src/` → pass
+- `python3 -m ruff check src/ tests/` → pass
+- `python3 -m mypy src/` → success, 35 source files
+- `python3 -m pytest tests/ -q` → 419 passed, 0 failed
+- `grep "cov-fail-under" AGENTS.md .github/workflows/ci.yml` → both show 90%
+
+### Memory
+- `memory/DECISIONS.md`: ADR-010b added
+- `memory/FAILURES.md`: F-016 added
+
+---
+
+## Session: 2026-05-29 (work) — OPEN FORENSIC ISSUE REMEDIATION PREPARED
+
+### Session Baseline
+- Branch: `work`, HEAD before edits: `360fccf` (Merge PR #144)
+- Open forensic/source:agent issues discovered via GitHub REST API: #137, #138, #139, #140, #141, #142
+- Open PRs discovered via GitHub REST API: 0
+- Local GitHub mutation limitations: `gh` is not installed and no git remote is configured, so branch push / per-issue PR creation cannot be completed from this container without external connector support.
+
+### Implemented Fixes
+| Issue | Fix | Evidence Target |
+|-------|-----|-----------------|
+| #137 | Updated AGENTS.md coverage gate text from 50% to 90% | AGENTS.md now matches `.github/workflows/ci.yml` |
+| #138 | Removed stale langchain/langchain_anthropic mypy missing-import overrides | `pyproject.toml` has no `langchain` references |
+| #139 | Added `RISK_DECISION_TTL_SECONDS` env read and regression tests | `RiskLimits.from_env()` maps env value/default correctly |
+| #140 | Removed unused `HardRuleViolation` exception and export | `rg "HardRuleViolation" src tests` returns no matches |
+| #141 | Corrected README good-first-contribution module paths | README paths match existing source files |
+| #142 | Added default and bug-fix PR templates with FDD/FSV evidence fields | `.github/PULL_REQUEST_TEMPLATE/{default,bug-fix}.md` exist |
+
+### Post-FSV
+- `python -m compileall -q src/` → pass
+- `python -m pytest tests/test_risk_gate.py -v` → 25 passed
+- `python -m pytest tests/ --cov=src --cov-report=term-missing --cov-fail-under=90` → 421 passed, TOTAL 98.22%
+- `python -m mypy src/` → success, 35 source files
+- `python -m ruff check src/ tests/` → all checks passed
+- `python -m pyflakes src/` → pass
+- `python -m radon cc src/ -a` → average complexity A (2.9555555555555557)
+- `python -m pip_audit -r requirements.txt` → no known vulnerabilities found
+
+### Memory / Handoff
+- Memory synchronized in `memory/FAILURES.md`, `memory/DECISIONS.md`, and this progress entry.
+- Local remediation is complete for #137-#142. External GitHub mutation remains blocked in this container because `gh` is not installed and no git remote/auth connector is configured; create/push per-issue branches and issue comments from an authenticated environment if strict one-PR-per-issue governance is required.
+
 ## Session: 2026-05-29 (claude/forensic-pr-review-IS8sA) — FORENSIC PR REVIEW COMPLETE
 
 ### Session Baseline

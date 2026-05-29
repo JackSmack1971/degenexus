@@ -17,7 +17,7 @@ Create an environment with `python -m venv .venv` and install deps using `pip in
 Target Python >=3.11 per `pyproject.toml` (CI runs 3.12), 4-space indentation, explicit type hints, and small focused functions. Follow existing naming: `snake_case` for modules/functions, `PascalCase` for classes, and `UPPER_SNAKE_CASE` for constants. Preserve the current `src/` package layout instead of adding one-off top-level scripts. Use `pytest-mock`’s `mocker` fixture for test doubles rather than importing `unittest.mock` directly.
 
 ## Testing Guidelines
-Pytest is configured in `pyproject.toml` with `testpaths = ["tests"]` and `python_functions = ["test_*"]`. Add or update tests with every behavioral change, especially around risk gates, portfolio state, and prompt sanitization. CI enforces coverage with `pytest --cov=src --cov-fail-under=50`; `CLAUDE.md` sets the stronger team target at 90%+. Prefer deterministic fixtures in `tests/conftest.py`.
+Pytest is configured in `pyproject.toml` with `testpaths = ["tests"]` and `python_functions = ["test_*"]`. Add or update tests with every behavioral change, especially around risk gates, portfolio state, and prompt sanitization. CI enforces coverage with `pytest --cov=src --cov-fail-under=90`, matching the 90%+ target in `CLAUDE.md`. Prefer deterministic fixtures in `tests/conftest.py`.
 
 ## Commit & Pull Request Guidelines
 Recent history follows conventional-style subjects such as `docs(audit): ...` and `fix(risk): ...`. Keep commits scoped and imperative. Pull requests must link an issue, summarize the change, include FSV evidence, list at least three edge cases, paste test output, and note any `memory/` updates. Use `.github/PULL_REQUEST_TEMPLATE/default.md` or `bug-fix.md` as appropriate.
