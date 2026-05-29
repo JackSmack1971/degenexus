@@ -1,5 +1,30 @@
 # PROGRESS
 
+## Session: 2026-05-29 (codex/issue-140) — FDD+FSV COMPLETE
+
+### Baseline
+- Branch: `codex/issue-140` from `360fccf` (pre-fix)
+- Issue: #140 — `HardRuleViolation` exception class defined but never raised
+- Pre-fix: `class HardRuleViolation(Exception)` at `risk_gate.py:20-26`; exported in `__init__.py`; never instantiated or raised anywhere
+- Coverage miss: lines 24-26 (`HardRuleViolation.__init__` body) permanently 0% — dead code noise
+
+### Fix Applied
+- `src/core/risk_gate.py`: Removed `HardRuleViolation` class (7 lines)
+- `src/core/__init__.py`: Removed `HardRuleViolation` from import and `__all__`
+
+### Post-FSV
+- `python3 -m compileall -q src/` → pass
+- `python3 -m ruff check src/ tests/` → pass
+- `python3 -m mypy src/` → success, 35 source files
+- `python3 -m pytest tests/ -q` → 419 passed, 0 failed
+- `python3 -m pytest tests/ --cov=src/core/risk_gate.py` → risk_gate.py 100%
+
+### Memory
+- `memory/DECISIONS.md`: ADR-010a added
+- `memory/FAILURES.md`: F-015 added
+
+---
+
 ## Session: 2026-05-29 (codex/issue-138) — FDD+FSV COMPLETE
 
 ### Baseline

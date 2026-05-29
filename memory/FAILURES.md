@@ -1,5 +1,17 @@
 # FAILURES
 
+## F-015 — 2026-05-29 — HardRuleViolation dead code creates misleading API contract
+
+- **Failure mode:** `HardRuleViolation(Exception)` defined in `risk_gate.py` but never raised. Docstring claims "Raised when a trade proposal violates a hard risk rule" — misleading because `check_hard_rules()` returns `list[str]`, not raises.
+- **Physical evidence:** `grep -rn "raise HardRuleViolation\|HardRuleViolation(" src/ tests/` returned 0 matches. Coverage confirmed lines 24-26 at 0% in every run.
+- **Root cause:** Class added during initial design when exception-based contract was considered; never removed when return-value API was adopted.
+- **Blast radius:** Contributors could write `except HardRuleViolation:` expecting coverage of all hard-rule violations, silently swallowing violations. Permanently uncovered lines add noise to coverage reports.
+- **Issue:** #140
+- **Fix:** Deleted `HardRuleViolation` class and its `__init__.py` export.
+- **Never repeat:** When changing an API from exception-based to return-value (or vice versa), delete the superseded exception class in the same PR rather than leaving it as dead code.
+
+---
+
 ## F-017 — 2026-05-29 — Stale mypy overrides after langchain dependency removal
 
 - **Failure mode:** `[[tool.mypy.overrides]]` retained `langchain` and `langchain_anthropic` entries after PR #123 removed both from `requirements.txt`. The override silently suppressed any type errors for those packages, including if they were re-added without stubs.
