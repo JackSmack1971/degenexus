@@ -1,5 +1,16 @@
 # DECISIONS
 
+## ADR-010c — Remove stale langchain mypy overrides after dependency removal (codex/issue-138)
+
+**Date:** 2026-05-29
+**Issue:** #138
+**Context:** PR #123 removed `langchain` and `langchain-anthropic` from `requirements.txt`. The `[[tool.mypy.overrides]]` block in `pyproject.toml` was not updated, leaving `ignore_missing_imports = true` for packages no longer in the project.
+**Decision:** Remove `"langchain"`, `"langchain.*"`, `"langchain_anthropic"`, `"langchain_anthropic.*"` from the override list. Active override modules remain: `ta`, `ta.*`, `yfinance`, `yfinance.*`, `anthropic`, `openai`, `openai.*`.
+**Alternatives rejected:** Keeping the stale entries (would silently suppress errors if langchain were re-added without type stubs).
+**Edge cases covered:** `grep "langchain" pyproject.toml requirements.txt src/` returns 0; mypy still passes with 35 source files.
+
+---
+
 ## ADR-010e — Create .github/PULL_REQUEST_TEMPLATE/ referenced by AGENTS.md (codex/issue-142)
 
 **Date:** 2026-05-29

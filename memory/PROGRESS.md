@@ -1,30 +1,29 @@
 # PROGRESS
 
-## Session: 2026-05-29 (codex/issue-142) — FDD+FSV COMPLETE
+## Session: 2026-05-29 (codex/issue-138) — FDD+FSV COMPLETE
 
 ### Baseline
-- Branch: `codex/issue-142` from `360fccf` (pre-fix)
-- Issue: #142 — AGENTS.md references `.github/PULL_REQUEST_TEMPLATE/` that does not exist
-- Pre-fix: `ls .github/` showed only `workflows/`; no `PULL_REQUEST_TEMPLATE/` directory
+- Branch: `codex/issue-138` from `360fccf` (pre-fix)
+- Issue: #138 — `pyproject.toml` mypy overrides include removed langchain/langchain_anthropic packages
+- Pre-fix: `[[tool.mypy.overrides]].module` listed `"langchain"`, `"langchain.*"`, `"langchain_anthropic"`, `"langchain_anthropic.*"` — packages removed from requirements.txt in PR #123
 
 ### Fix Applied
-- Created `.github/PULL_REQUEST_TEMPLATE/default.md` — FSV checklist template (summary, FDD evidence, PRE/POST state, edge cases, memory updates)
-- Created `.github/PULL_REQUEST_TEMPLATE/bug-fix.md` — bug-specific template (trigger, root cause, reproduction evidence, regression proof)
+- `pyproject.toml:34`: Removed `"langchain"`, `"langchain.*"`, `"langchain_anthropic"`, `"langchain_anthropic.*"` from the module list in `[[tool.mypy.overrides]]`
 
 ### Post-FSV
 - `python3 -m compileall -q src/` → pass
 - `python3 -m ruff check src/ tests/` → pass
 - `python3 -m mypy src/` → success, 35 source files
 - `python3 -m pytest tests/ -q` → 419 passed, 0 failed
-- `ls .github/PULL_REQUEST_TEMPLATE/` → `default.md bug-fix.md`
+- `grep "langchain" pyproject.toml requirements.txt src/` → 0 matches
 
 ### Memory
-- `memory/DECISIONS.md`: ADR-010e added
-- `memory/FAILURES.md`: F-019 added
+- `memory/DECISIONS.md`: ADR-010c added
+- `memory/FAILURES.md`: F-017 added
 
 ---
 
-## Session: 2026-05-29 (codex/issue-141) — FDD+FSV COMPLETE
+## Session: 2026-05-29 (codex/issue-142) — FDD+FSV COMPLETE
 
 ### Baseline
 - Branch: `codex/issue-141` from `360fccf` (pre-fix)
