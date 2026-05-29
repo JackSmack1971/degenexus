@@ -1,5 +1,17 @@
 # FAILURES
 
+## F-015 — 2026-05-29 — HardRuleViolation dead code creates misleading API contract
+
+- **Failure mode:** `HardRuleViolation(Exception)` defined in `risk_gate.py` but never raised. Docstring claims "Raised when a trade proposal violates a hard risk rule" — misleading because `check_hard_rules()` returns `list[str]`, not raises.
+- **Physical evidence:** `grep -rn "raise HardRuleViolation\|HardRuleViolation(" src/ tests/` returned 0 matches. Coverage confirmed lines 24-26 at 0% in every run.
+- **Root cause:** Class added during initial design when exception-based contract was considered; never removed when return-value API was adopted.
+- **Blast radius:** Contributors could write `except HardRuleViolation:` expecting coverage of all hard-rule violations, silently swallowing violations. Permanently uncovered lines add noise to coverage reports.
+- **Issue:** #140
+- **Fix:** Deleted `HardRuleViolation` class and its `__init__.py` export.
+- **Never repeat:** When changing an API from exception-based to return-value (or vice versa), delete the superseded exception class in the same PR rather than leaving it as dead code.
+
+---
+
 ## F-011 — 2026-05-28 — IndicatorEngine success-path coverage 87% regression from #55
 
 - **Failure mode:** `src/data/indicators.py` is at 87% coverage (11 missed lines: 48-49, 57-60, 77, 103-104, 115-116) — below 90% threshold. Regression from closed issue #55.

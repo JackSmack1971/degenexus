@@ -1,5 +1,16 @@
 # DECISIONS
 
+## ADR-010a — Delete HardRuleViolation dead code; preserve return-value API (codex/issue-140)
+
+**Date:** 2026-05-29
+**Issue:** #140
+**Context:** `HardRuleViolation(Exception)` existed in `risk_gate.py` with docstring "Raised when a trade proposal violates a hard risk rule." but `check_hard_rules()` returns `list[str]` and never raises. The class occupied 7 lines and created a permanently uncovered code path (lines 24-26 at 0%).
+**Decision:** Delete the class and its `__init__.py` export. The return-value API is the correct and established contract; no callers depend on the exception.
+**Alternatives rejected:** Raising `HardRuleViolation` from `check_hard_rules()` is an API-breaking change; leaving the dead class perpetuates a misleading contract for future contributors.
+**Edge cases covered:** `grep -rn "HardRuleViolation" src/ tests/` returns 0 results; all 419 tests continue to pass.
+
+---
+
 ## ADR-001 — sys.modules injection as primary CI fix for ta-dependent tests (codex/issue-66)
 
 **Date:** 2026-05-27  

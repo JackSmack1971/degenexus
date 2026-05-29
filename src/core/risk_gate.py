@@ -17,15 +17,6 @@ if TYPE_CHECKING:
     from ..models.signals import TradeProposal, RiskDecision
 
 
-class HardRuleViolation(Exception):
-    """Raised when a trade proposal violates a hard risk rule."""
-
-    def __init__(self, rule: str, detail: str) -> None:
-        self.rule = rule
-        self.detail = detail
-        super().__init__(f"[HARD_RULE_VIOLATION] {rule}: {detail}")
-
-
 @dataclass
 class RiskLimits:
     max_loss_pct_per_trade: float = 0.02
