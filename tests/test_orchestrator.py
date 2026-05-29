@@ -136,13 +136,34 @@ def test_counter_challenge_reuses_real_open_positions_summary(valid_signal, vali
         )
 
     orchestrator.risk_manager.assess_contextual_risk = fake_assess_contextual_risk
-    orchestrator.execution.execute = lambda *_: (None, None, "not reached in assertion path")
+    orchestrator.execution.execute = lambda *_, **__: (None, None, "not reached in assertion path")
 
     opened = orchestrator._phase_trade_cycle(valid_signal)
 
     assert opened is False
     assert captured_summaries == [open_summary, open_summary]
     assert attacker_reasoning not in captured_summaries[1]
+
+
+def test_ceo_triage_caps_approved_signals_at_two(valid_signal):
+    """When 3+ LIVE signals are presented and CEO approves all, triage returns at most 2."""
+    import copy
+    orchestrator = TradingOrchestrator(watchlist=["AAPL"])
+
+    # Create three distinct LIVE signals with high confidence
+    sig_a = copy.deepcopy(valid_signal)
+    sig_b = copy.deepcopy(valid_signal)
+    sig_c = copy.deepcopy(valid_signal)
+    sig_a.symbol = "AAPL"
+    sig_b.symbol = "SPY"
+    sig_c.symbol = "QQQ"
+
+    orchestrator.ceo.triage_signal = lambda signal, count: "PROCEED"
+
+    selected = orchestrator._phase_ceo_triage([sig_a, sig_b, sig_c])
+
+    assert len(selected) <= 2, "triage must never approve more signals than the execution cap"
+    assert len(selected) == 2
 
 
 def test_ceo_triage_rejects_non_live_signals_before_llm(valid_signal):

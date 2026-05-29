@@ -69,13 +69,14 @@ class RiskManagerAgent(BaseAgent):
         signal_confidence: float,
         open_positions_summary: str,
     ) -> RiskDecision:
+        safe_symbol = self._sanitize_external_text(proposal.symbol)
         safe_reasoning = self._sanitize_external_text(proposal.reasoning)
         safe_open_positions = self._sanitize_external_text(open_positions_summary or "  None")
         user_msg = f"""Assess this trade proposal:
 
 PROPOSAL:
   {self.TRUST_BOUNDARY_NOTICE}
-  Symbol: {proposal.symbol}
+  Symbol: {safe_symbol}
   Direction: {proposal.direction}
   Entry: ${proposal.entry_price:.4f} ({proposal.entry_type})
   Stop Loss: ${proposal.stop_loss:.4f}

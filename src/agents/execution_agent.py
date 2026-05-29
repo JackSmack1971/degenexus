@@ -31,6 +31,7 @@ class ExecutionAgent(BaseAgent):
         proposal: TradeProposal,
         risk_decision: Optional[RiskDecision],
         current_price: float,
+        signal_confidence: float = 0.7,
     ) -> tuple[Optional[Trade], Optional[Fill], Optional[str]]:
         """
         Returns (trade, fill, error_reason).
@@ -65,7 +66,7 @@ class ExecutionAgent(BaseAgent):
         else:
             distance_pct = 0.05
         order_type_str = select_order_type(
-            signal_confidence=0.7,
+            signal_confidence=signal_confidence,
             price_distance_pct=distance_pct,
         )
 

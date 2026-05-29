@@ -76,13 +76,14 @@ class QuantAgent(BaseAgent):
     ) -> str:
         avg_win = avg_win_usd if avg_win_usd > 0 else signal.current_price * 0.03
         avg_loss = avg_loss_usd if avg_loss_usd > 0 else signal.current_price * 0.015
+        safe_symbol = self._sanitize_external_text(signal.symbol)
         safe_reasoning = self._sanitize_external_text(signal.reasoning)
 
         return f"""Design a trade proposal for this signal:
 
 SIGNAL:
   {self.TRUST_BOUNDARY_NOTICE}
-  Symbol: {signal.symbol}
+  Symbol: {safe_symbol}
   Direction: {signal.direction}
   Trend: {signal.trend.value}
   Confidence: {signal.confidence:.2f}

@@ -6,10 +6,10 @@
  * `spawn(name, options)` method that returns `{ exitCode, stdout }`.
  */
 export async function run(agent) {
-  const auditResult = await agent.spawn('arch-audit-framework', { effort: 'high' });
+  const auditResult = await agent.spawn('code-reviewer', { effort: 'high' });
 
   if (auditResult.exitCode === 0) {
-    return agent.spawn('security-reviewer', { context: auditResult.stdout });
+    return agent.spawn('security-auditor', { context: auditResult.stdout });
   }
 
   throw new Error('Initial AST Audit Failed.');

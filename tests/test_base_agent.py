@@ -3,7 +3,6 @@
 import json
 import sys
 import pytest
-from unittest.mock import MagicMock
 
 from src.agents.base_agent import BaseAgent
 
@@ -72,10 +71,10 @@ class TestFallbackWhenNoClient:
 
 
 class TestRetryLogic:
-    def test_call_llm_retries_then_falls_back_on_persistent_failure(self):
+    def test_call_llm_retries_then_falls_back_on_persistent_failure(self, mocker):
         agent = _TestAgent()
         agent._provider = "anthropic"
-        agent._client = MagicMock()
+        agent._client = mocker.MagicMock()
         call_count = 0
 
         def failing_raw(sys, usr):
@@ -88,18 +87,18 @@ class TestRetryLogic:
         assert result == {"fallback": True, "context": "user"}
         assert call_count == agent.MAX_RETRIES
 
-    def test_call_llm_succeeds_on_first_attempt(self):
+    def test_call_llm_succeeds_on_first_attempt(self, mocker):
         agent = _TestAgent()
         agent._provider = "anthropic"
-        agent._client = MagicMock()
+        agent._client = mocker.MagicMock()
         agent._raw_llm_call = lambda s, u: '{"ok": true}'
         result = agent.call_llm("sys", "user")
         assert result == {"ok": True}
 
-    def test_call_llm_succeeds_on_second_attempt(self):
+    def test_call_llm_succeeds_on_second_attempt(self, mocker):
         agent = _TestAgent()
         agent._provider = "anthropic"
-        agent._client = MagicMock()
+        agent._client = mocker.MagicMock()
         attempts = []
 
         def flaky_raw(s, u):
@@ -202,11 +201,11 @@ class TestInitClient:
 class TestRawLlmCall:
     """Lines 108-123 of base_agent.py — _raw_llm_call() dispatch branches."""
 
-    def test_openrouter_branch_calls_client_chat(self):
+    def test_openrouter_branch_calls_client_chat(self, mocker):
         """Lines 117-121: openrouter provider → client.chat() called."""
         agent = _TestAgent()
         agent._provider = "openrouter"
-        mock_client = MagicMock()
+        mock_client = mocker.MagicMock()
         mock_client.chat.return_value = '{"result": "ok"}'
         agent._client = mock_client
         result = agent._raw_llm_call("system prompt", "user message")
@@ -216,21 +215,21 @@ class TestRawLlmCall:
             user_message="user message",
         )
 
-    def test_unknown_provider_raises_runtime_error(self):
+    def test_unknown_provider_raises_runtime_error(self, mocker):
         """Line 123: unknown provider → RuntimeError('No LLM client available')."""
         agent = _TestAgent()
         agent._provider = "unknown_provider"
-        agent._client = MagicMock()
+        agent._client = mocker.MagicMock()
         with pytest.raises(RuntimeError, match="No LLM client available"):
             agent._raw_llm_call("sys", "usr")
 
-    def test_anthropic_provider_calls_messages_create(self):
+    def test_anthropic_provider_calls_messages_create(self, mocker):
         """Lines 108-115: anthropic provider → client.messages.create() called."""
         agent = _TestAgent()
         agent._provider = "anthropic"
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock(text="  {\"ok\": true}  ")]
-        mock_client = MagicMock()
+        mock_response = mocker.MagicMock()
+        mock_response.content = [mocker.MagicMock(text="  {\"ok\": true}  ")]
+        mock_client = mocker.MagicMock()
         mock_client.messages.create.return_value = mock_response
         agent._client = mock_client
         result = agent._raw_llm_call("system prompt", "user message")
