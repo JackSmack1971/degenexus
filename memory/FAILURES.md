@@ -1,5 +1,17 @@
 # FAILURES
 
+## F-018 — 2026-05-29 — README.md Good First Contributions lists non-existent module paths
+
+- **Failure mode:** README.md line 160 listed `src/indicators.py`, `src/performance.py`, `src/context_injector.py` as targets for contributor coverage improvements. None of these paths exist; the real files are in `src/data/` and `src/memory/` sub-packages.
+- **Physical evidence:** `ls src/indicators.py src/performance.py src/context_injector.py` → all "No such file or directory"; `find src/ -name "indicators.py" -o -name "performance.py" -o -name "context_injector.py"` → correct sub-package paths.
+- **Root cause:** README written before sub-package reorganization; paths not updated after modules were moved.
+- **Blast radius:** New contributors looking for the "Good First Contributions" files cannot find them; onboarding friction.
+- **Issue:** #141
+- **Fix:** Updated README.md line 160 with correct package-qualified paths.
+- **Never repeat:** After moving source modules, grep README.md, AGENTS.md, and CLAUDE.md for the old paths and update in the same PR.
+
+---
+
 ## F-016 — 2026-05-29 — AGENTS.md coverage gate stale after PR #125 raised CI threshold
 
 - **Failure mode:** AGENTS.md documented `--cov-fail-under=50` while CI enforced `--cov-fail-under=90` since PR #125 merged.

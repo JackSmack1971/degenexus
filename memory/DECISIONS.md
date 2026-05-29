@@ -1,5 +1,16 @@
 # DECISIONS
 
+## ADR-010d — Correct README Good First Contributions module paths (codex/issue-141)
+
+**Date:** 2026-05-29
+**Issue:** #141
+**Context:** README.md listed `src/indicators.py`, `src/performance.py`, `src/context_injector.py` as good-first-contribution targets. These root-level paths don't exist; the actual files are `src/data/indicators.py`, `src/memory/performance.py`, `src/memory/context_injector.py`.
+**Decision:** Correct all three paths in README.md line 160 to match actual filesystem layout.
+**Alternatives rejected:** No change (contributors cannot find files); adding root-level symlinks (unnecessary complexity).
+**Edge cases covered:** `find src/ -name "indicators.py" -o -name "performance.py" -o -name "context_injector.py"` confirms correct sub-package locations.
+
+---
+
 ## ADR-010b — Synchronize AGENTS.md coverage gate with CI enforcement (codex/issue-137)
 
 **Date:** 2026-05-29

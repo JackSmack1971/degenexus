@@ -1,5 +1,28 @@
 # PROGRESS
 
+## Session: 2026-05-29 (codex/issue-141) — FDD+FSV COMPLETE
+
+### Baseline
+- Branch: `codex/issue-141` from `360fccf` (pre-fix)
+- Issue: #141 — README.md "Good First Contributions" lists incorrect module paths
+- Pre-fix: `README.md:160` listed `src/indicators.py`, `src/performance.py`, `src/context_injector.py` — none of which exist
+
+### Fix Applied
+- `README.md:160`: Corrected three module paths to `src/data/indicators.py`, `src/memory/performance.py`, `src/memory/context_injector.py`
+
+### Post-FSV
+- `python3 -m compileall -q src/` → pass
+- `python3 -m ruff check src/ tests/` → pass
+- `python3 -m mypy src/` → success, 35 source files
+- `python3 -m pytest tests/ -q` → 419 passed, 0 failed
+- `grep "src/indicators.py\|src/performance.py\|src/context_injector.py" README.md` → 0 matches
+
+### Memory
+- `memory/DECISIONS.md`: ADR-010d added
+- `memory/FAILURES.md`: F-018 added
+
+---
+
 ## Session: 2026-05-29 (codex/issue-137) — FDD+FSV COMPLETE
 
 ### Baseline
