@@ -214,9 +214,13 @@ def validate_agent_skills_and_memory(root: Path, skills: set[str], errors: list[
         if fm.get("memory") == "project":
             memory_file = root / ".claude" / "agent-memory" / name / "MEMORY.md"
             lowercase_file = root / ".claude" / "agent-memory" / name / "memory.md"
-            if not memory_file.exists():
+            # Use iterdir() for case-sensitive filename checks — Path.exists() is case-insensitive
+            # on Windows NTFS, which causes false positives when MEMORY.md (correct) is present.
+            parent_dir = memory_file.parent
+            actual_names = {p.name for p in parent_dir.iterdir()} if parent_dir.exists() else set()
+            if "MEMORY.md" not in actual_names:
                 errors.append(f"missing project memory file: {repo_path(memory_file, root)}")
-            if lowercase_file.exists():
+            if "memory.md" in actual_names:
                 errors.append(f"lowercase project memory will not auto-load: {repo_path(lowercase_file, root)}")
         permission_mode = str(fm.get("permissionMode") or "")
         if permission_mode in FORBIDDEN_PERMISSION_MODES:
