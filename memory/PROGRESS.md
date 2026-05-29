@@ -1,5 +1,28 @@
 # PROGRESS
 
+## Session: 2026-05-29 (codex/issue-138) — FDD+FSV COMPLETE
+
+### Baseline
+- Branch: `codex/issue-138` from `360fccf` (pre-fix)
+- Issue: #138 — `pyproject.toml` mypy overrides include removed langchain/langchain_anthropic packages
+- Pre-fix: `[[tool.mypy.overrides]].module` listed `"langchain"`, `"langchain.*"`, `"langchain_anthropic"`, `"langchain_anthropic.*"` — packages removed from requirements.txt in PR #123
+
+### Fix Applied
+- `pyproject.toml:34`: Removed `"langchain"`, `"langchain.*"`, `"langchain_anthropic"`, `"langchain_anthropic.*"` from the module list in `[[tool.mypy.overrides]]`
+
+### Post-FSV
+- `python3 -m compileall -q src/` → pass
+- `python3 -m ruff check src/ tests/` → pass
+- `python3 -m mypy src/` → success, 35 source files
+- `python3 -m pytest tests/ -q` → 419 passed, 0 failed
+- `grep "langchain" pyproject.toml requirements.txt src/` → 0 matches
+
+### Memory
+- `memory/DECISIONS.md`: ADR-010c added
+- `memory/FAILURES.md`: F-017 added
+
+---
+
 ## Session: 2026-05-29 (claude/forensic-pr-review-IS8sA) — FORENSIC PR REVIEW COMPLETE
 
 ### Session Baseline

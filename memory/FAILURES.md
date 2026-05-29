@@ -1,5 +1,17 @@
 # FAILURES
 
+## F-017 — 2026-05-29 — Stale mypy overrides after langchain dependency removal
+
+- **Failure mode:** `[[tool.mypy.overrides]]` retained `langchain` and `langchain_anthropic` entries after PR #123 removed both from `requirements.txt`. The override silently suppressed any type errors for those packages, including if they were re-added without stubs.
+- **Physical evidence:** `grep "langchain" pyproject.toml` → entries in `[[tool.mypy.overrides]]`; `grep "langchain" requirements.txt src/` → 0 matches.
+- **Root cause:** Dependency removal PR (#123) did not include a corresponding pyproject.toml cleanup.
+- **Blast radius:** Future type gate weakened — if langchain were re-added without stubs, mypy would silently pass.
+- **Issue:** #138
+- **Fix:** Removed langchain/langchain_anthropic from `[[tool.mypy.overrides]].module`.
+- **Never repeat:** When removing a dependency from requirements.txt, search pyproject.toml for related type-stub or mypy-override references and clean them in the same PR.
+
+---
+
 ## F-011 — 2026-05-28 — IndicatorEngine success-path coverage 87% regression from #55
 
 - **Failure mode:** `src/data/indicators.py` is at 87% coverage (11 missed lines: 48-49, 57-60, 77, 103-104, 115-116) — below 90% threshold. Regression from closed issue #55.
