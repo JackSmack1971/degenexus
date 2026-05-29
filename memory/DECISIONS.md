@@ -1,5 +1,16 @@
 # DECISIONS
 
+## ADR-010e — Create .github/PULL_REQUEST_TEMPLATE/ referenced by AGENTS.md (codex/issue-142)
+
+**Date:** 2026-05-29
+**Issue:** #142
+**Context:** AGENTS.md instructed contributors to use `.github/PULL_REQUEST_TEMPLATE/default.md` or `bug-fix.md`. Neither file nor the directory existed. Without templates, GitHub shows a blank PR body and contributors receive no automatic reminder of the FSV evidence checklist required by CLAUDE.md.
+**Decision:** Create both template files. `default.md` for standard PRs (summary, FDD evidence, PRE/POST FSV state, 3 edge cases, memory updates). `bug-fix.md` for bug-specific PRs (trigger, root cause, reproduction evidence, regression proof).
+**Alternatives rejected:** Removing the AGENTS.md reference (loses enforcement surface for FSV requirements at PR creation time).
+**Edge cases covered:** `ls .github/PULL_REQUEST_TEMPLATE/` → both files exist; AGENTS.md reference is now resolvable.
+
+---
+
 ## ADR-001 — sys.modules injection as primary CI fix for ta-dependent tests (codex/issue-66)
 
 **Date:** 2026-05-27  
