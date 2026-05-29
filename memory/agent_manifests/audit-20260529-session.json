@@ -1,0 +1,43 @@
+{
+  "phase": "audit-only FDD+FSV",
+  "repo": "JackSmack1971/degenexus",
+  "head_sha": "e4ec9bc205c0ed8478f1c80e13842fbed5cde52d",
+  "commands_run": [
+    "find .. -name AGENTS.md -print; rg --files -g 'CLAUDE.md' -g 'memory/**' -g '.claude/**' -g 'pyproject.toml' -g 'requirements.txt' | sort",
+    "sed -n '1,260p' CLAUDE.md; for f in $(rg --files memory | sort); do sed -n '1,220p' $f; done; find .claude -maxdepth 3 -type f -print; test -d .claude/rules; test -d .claude/imports",
+    "git branch --show-current; git remote show origin; git rev-parse HEAD; git status --short",
+    "python GitHub REST search for open issues matching source:agent, forensic/type tags, codex/claude/autonomous legacy terms",
+    "python GitHub REST list open pull requests",
+    "python --version; python -m pytest --version; ruff --version; pyflakes/radon/pip-audit/gh version probes",
+    "python -m pip install pyflakes radon pip-audit pytest-cov -q",
+    "python -m compileall -q src/",
+    "python -m pytest tests/ -q",
+    "python -m pytest tests/ --cov=src --cov-report=term-missing -q",
+    "ruff check src/ tests/",
+    "python -m pyflakes src/",
+    "python -m mypy src/",
+    "python -m radon cc src/ -a -s",
+    "pip-audit -r requirements.txt",
+    "python .claude/hooks/validate-claude-config.py; python -m compileall -q .claude/hooks; git diff --check",
+    "rg -n network/API/mock/deterministic gate scans across src and tests",
+    "python GitHub REST closed/open duplicate searches for radon C signatures",
+    "python GitHub REST unauthenticated issue creation auth probe (403 Method forbidden; no issue created)"
+  ],
+  "anomalies_found": [],
+  "issues_created": [],
+  "issues_updated": [],
+  "memory_files_updated": [
+    "memory/PROGRESS.md",
+    "memory/agent_manifests/audit-20260529-session.json"
+  ],
+  "forbidden_actions_performed": false,
+  "remaining_unprocessed_failures": 0,
+  "completion_verdict": "pass",
+  "evidence": {
+    "doctrine_and_memory_read": "CLAUDE.md and every file under memory/ were read from disk with sed loop over rg --files memory.",
+    "claude_assets": ".claude/rules and .claude/imports both present; config validator passed.",
+    "github_governance": "Unauthenticated GitHub REST search reported zero open matching source-agent/forensic/tagged/legacy issues and zero open PRs; no issue closures or PR creation performed via GitHub.",
+    "tests": "425 passed; coverage total 98%; compileall, ruff, pyflakes, mypy, radon average A, pip-audit passed.",
+    "notes": "gh CLI unavailable and no git origin remote; public REST read path was used for issue/PR discovery."
+  }
+}
