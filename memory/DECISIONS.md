@@ -11,12 +11,30 @@
 
 ---
 
+## ADR-009 — Keep risk hard-rule API return-value based and make TTL env-configurable
+
+**Date:** 2026-05-29
+**Issues:** #139, #140
+**Context:** `RiskGate.check_hard_rules()` already exposes hard-rule failures as `list[str]` and downstream code builds `RiskDecision` objects from that return value. A dead `HardRuleViolation` exception implied an exception-based contract while never being raised. Separately, `RiskLimits.risk_decision_ttl_seconds` existed but `RiskLimits.from_env()` did not read `RISK_DECISION_TTL_SECONDS`.
+**Decision:** Preserve the established return-value API by deleting `HardRuleViolation` and its export, and add `RISK_DECISION_TTL_SECONDS` to `RiskLimits.from_env()` with regression coverage for env override and default behavior.
+**Alternatives rejected:** Raising `HardRuleViolation` from `check_hard_rules()` would be an API-breaking change across orchestrator/risk tests; leaving the class in place perpetuates misleading dead code.
+**Edge cases covered:** env override (`42` seconds), unset env default (`300` seconds), existing hard-rule return-value tests unchanged.
+
+## ADR-010 — Contributor governance docs must point to physical templates and current gates
+
+**Date:** 2026-05-29
+**Issues:** #137, #138, #141, #142
+**Context:** AGENTS.md and README are contributor-facing SoT. They referenced a 50% coverage threshold, phantom PR templates, and non-existent module paths; `pyproject.toml` retained mypy waivers for dependencies removed from requirements.
+**Decision:** Update docs/config to match physical repository state: CI coverage gate is 90%, README good-first paths include their package directories, stale langchain mypy waivers are removed, and both referenced PR templates now exist with FDD/FSV evidence fields.
+**Alternatives rejected:** Removing the PR-template reference would avoid the phantom-path bug but lose a useful governance enforcement surface; retaining removed dependency waivers would weaken future type-check gate evidence.
+**Edge cases covered:** template directory existence, no stale langchain references, no stale README root-level module paths, AGENTS threshold matches CI.
+
 ## ADR-001 — sys.modules injection as primary CI fix for ta-dependent tests (codex/issue-66)
 
-**Date:** 2026-05-27  
-**Issue:** #66  
-**Context:** `ta>=0.11.0` fails to build wheels in some environments (setuptools>=65 removes `install_layout`). 11 tests used dotted-path `patch("ta.volatility.BollingerBands", ...)` which requires ta to be importable at patch-time — these tests fail with `ModuleNotFoundError` when ta is not installed. A `setuptools<65` pin was initially added but caused CI `pip-audit` to flag CVEs in old setuptools, creating a new CI failure.  
-**Decision:** The primary fix is **sys.modules injection** only — no `setuptools<65` pin in requirements.txt. Tests work regardless of whether ta is installed. `setuptools<65` was removed after it caused pip-audit failures in CI (pip cache miss forced fresh install, pip-audit flagged setuptools 64.x CVEs).  
+**Date:** 2026-05-27
+**Issue:** #66
+**Context:** `ta>=0.11.0` fails to build wheels in some environments (setuptools>=65 removes `install_layout`). 11 tests used dotted-path `patch("ta.volatility.BollingerBands", ...)` which requires ta to be importable at patch-time — these tests fail with `ModuleNotFoundError` when ta is not installed. A `setuptools<65` pin was initially added but caused CI `pip-audit` to flag CVEs in old setuptools, creating a new CI failure.
+**Decision:** The primary fix is **sys.modules injection** only — no `setuptools<65` pin in requirements.txt. Tests work regardless of whether ta is installed. `setuptools<65` was removed after it caused pip-audit failures in CI (pip cache miss forced fresh install, pip-audit flagged setuptools 64.x CVEs).
 **Alternatives rejected:**
 - Keep `setuptools<65` pin — causes pip-audit CI failures
 - Replace `ta` with `pandas-ta` — requires rewriting `IndicatorEngine`
@@ -27,55 +45,55 @@
 
 ## ADR-002 — sys.modules injection pattern for test isolation from uninstalled packages (codex/issue-66)
 
-**Date:** 2026-05-27  
-**Issue:** #66  
-**Context:** Tests that patch dotted-path strings (`"ta.volatility.BollingerBands"`) require the package to be importable even for mock tests. This creates a hard build dependency for tests.  
-**Decision:** Replace all dotted-path string patches on `ta` sub-modules with `patch.dict(sys.modules, {...})` injection via the `_ta_patch()` helper. This makes tests independent of whether `ta` is installed.  
-**Pattern:** `_ta_patch(vol=fake_vol)` → temporarily replaces `sys.modules["ta"]` and `sys.modules["ta.volatility"]` for the duration of the `with` block.  
+**Date:** 2026-05-27
+**Issue:** #66
+**Context:** Tests that patch dotted-path strings (`"ta.volatility.BollingerBands"`) require the package to be importable even for mock tests. This creates a hard build dependency for tests.
+**Decision:** Replace all dotted-path string patches on `ta` sub-modules with `patch.dict(sys.modules, {...})` injection via the `_ta_patch()` helper. This makes tests independent of whether `ta` is installed.
+**Pattern:** `_ta_patch(vol=fake_vol)` → temporarily replaces `sys.modules["ta"]` and `sys.modules["ta.volatility"]` for the duration of the `with` block.
 **Applies to:** Any test for code that does `import some.package` where that package may not be available in all environments.
 
 ---
 
 ## ADR-003 — assert narrowing for Optional→required post-gate type in ExecutionAgent (codex/issue-68)
 
-**Date:** 2026-05-27  
-**Issue:** #68  
-**Context:** `execute()` accepts `risk_decision: Optional[RiskDecision]`, passes it to `gate.validate()` which raises on None/rejected, but mypy still sees Optional reaching `_apply_conditions(proposal, risk_decision: RiskDecision)`.  
-**Decision:** Add `assert risk_decision is not None` after `gate.validate()` to narrow the type from Optional to RiskDecision. This satisfies mypy without changing the runtime contract.  
+**Date:** 2026-05-27
+**Issue:** #68
+**Context:** `execute()` accepts `risk_decision: Optional[RiskDecision]`, passes it to `gate.validate()` which raises on None/rejected, but mypy still sees Optional reaching `_apply_conditions(proposal, risk_decision: RiskDecision)`.
+**Decision:** Add `assert risk_decision is not None` after `gate.validate()` to narrow the type from Optional to RiskDecision. This satisfies mypy without changing the runtime contract.
 **Alternative rejected:** Change `execute()` signature to `risk_decision: RiskDecision` — breaks callers that pass None for dry-run scenarios.
 
 ---
 
 ## ADR-004 — Explicit Direction() constructor call for str→Direction in data_analyst (codex/issue-68)
 
-**Date:** 2026-05-27  
-**Issue:** #68  
-**Context:** `data_analyst.py:119` passes `str(...)` to `direction=` field of `MarketSignal`, which has type `Direction`. Pydantic's validator coerces it at runtime, but mypy rejects the contract.  
+**Date:** 2026-05-27
+**Issue:** #68
+**Context:** `data_analyst.py:119` passes `str(...)` to `direction=` field of `MarketSignal`, which has type `Direction`. Pydantic's validator coerces it at runtime, but mypy rejects the contract.
 **Decision:** Wrap with `Direction(str(response.get("direction", "LONG")).upper())` to make the coercion explicit and satisfy mypy. If the string is invalid, the `except Exception` in `_parse_signal` catches it and returns None (correct behavior).
 
 ---
 
 ## ADR-005 — DI injection for DataAnalystAgent.feed and .engine (codex/issue-69)
 
-**Date:** 2026-05-27  
-**Issue:** #69  
-**Context:** `DataAnalystAgent.__init__` hard-instantiates `MarketFeed` and `IndicatorEngine`, making `analyze()` and `_build_bar_summary()` untestable in isolation. Existing tests use `__new__` workaround and cannot call `analyze()`.  
-**Decision:** Add `feed: Optional[MarketFeed] = None` and `engine: Optional[IndicatorEngine] = None` as keyword-only constructor params. Use `self.feed = feed or MarketFeed(alpha_vantage_key=None)` pattern (same as resolved issue #57 for PortfolioManagerAgent).  
+**Date:** 2026-05-27
+**Issue:** #69
+**Context:** `DataAnalystAgent.__init__` hard-instantiates `MarketFeed` and `IndicatorEngine`, making `analyze()` and `_build_bar_summary()` untestable in isolation. Existing tests use `__new__` workaround and cannot call `analyze()`.
+**Decision:** Add `feed: Optional[MarketFeed] = None` and `engine: Optional[IndicatorEngine] = None` as keyword-only constructor params. Use `self.feed = feed or MarketFeed(alpha_vantage_key=None)` pattern (same as resolved issue #57 for PortfolioManagerAgent).
 **Coverage gain:** `analyze()` and `_build_bar_summary()` become fully testable, closing the 19% miss rate on `data_analyst.py`.
 
 ---
 
 ## ADR-006 — Create .claude/rules/01-security.md and .claude/imports/doctrine-summary.md (codex/issue-70)
 
-**Date:** 2026-05-27  
-**Issue:** #70  
-**Context:** CLAUDE.md references `.claude/imports/doctrine-summary.md` and `.claude/rules/01-security.md` which do not exist, causing silent failures at Step 5 of the mandatory turn-start ritual.  
-**Decision:** Create both files with the relevant content: (a) doctrine-summary.md as a condensed operational checklist, (b) 01-security.md with STRIDE rules specific to this AI trading system.  
+**Date:** 2026-05-27
+**Issue:** #70
+**Context:** CLAUDE.md references `.claude/imports/doctrine-summary.md` and `.claude/rules/01-security.md` which do not exist, causing silent failures at Step 5 of the mandatory turn-start ritual.
+**Decision:** Create both files with the relevant content: (a) doctrine-summary.md as a condensed operational checklist, (b) 01-security.md with STRIDE rules specific to this AI trading system.
 **Alternative rejected:** Remove the `@import` reference from CLAUDE.md — the files should exist per the stated doctrine.
 
 ## ADR-007 — Audit-only pass records evidence without code remediation
 
-**Date:** 2026-05-27  
+**Date:** 2026-05-27
 **Context:** User requested audit-only FDD+FSV pass and explicit prohibition on implementing fixes. Multiple quality/analyzer failures were detected.
 **Decision:** Record full forensic evidence in memory files and hand off remediation to downstream implementation agent; do not modify production/test logic in this pass.
 **Consequences:** Repository remains functionally test-green but non-compliant on ruff/mypy/tooling gates until implementation cycle.

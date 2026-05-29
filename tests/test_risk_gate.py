@@ -1,7 +1,10 @@
 """Tests for RiskGate hard rules — most critical path in the system."""
 
 import math
+import pytest
+from datetime import datetime, timezone, timedelta
 from src.models.signals import RiskDecisionType
+from src.core.risk_gate import RiskGate, RiskLimits
 
 
 def check_hard_rules(risk_gate, proposal, **overrides):
@@ -14,6 +17,51 @@ def check_hard_rules(risk_gate, proposal, **overrides):
     )
     defaults.update(overrides)
     return risk_gate.check_hard_rules(proposal, **defaults)
+
+
+class TestRiskLimitsFromEnv:
+    def test_risk_decision_ttl_seconds_reads_env_override(self, monkeypatch):
+        monkeypatch.setenv("RISK_DECISION_TTL_SECONDS", "42")
+
+        limits = RiskLimits.from_env()
+
+        assert limits.risk_decision_ttl_seconds == 42
+
+    def test_risk_decision_ttl_seconds_defaults_to_300_when_unset(self, monkeypatch):
+        monkeypatch.delenv("RISK_DECISION_TTL_SECONDS", raising=False)
+
+        limits = RiskLimits.from_env()
+
+        assert limits.risk_decision_ttl_seconds == 300
+
+    def test_risk_decision_ttl_zero_raises(self, monkeypatch):
+        monkeypatch.setenv("RISK_DECISION_TTL_SECONDS", "0")
+
+        with pytest.raises(ValueError, match="positive"):
+            RiskLimits.from_env()
+
+    def test_risk_decision_ttl_negative_raises(self, monkeypatch):
+        monkeypatch.setenv("RISK_DECISION_TTL_SECONDS", "-1")
+
+        with pytest.raises(ValueError, match="positive"):
+            RiskLimits.from_env()
+
+    def test_risk_decision_ttl_non_integer_raises(self, monkeypatch):
+        monkeypatch.setenv("RISK_DECISION_TTL_SECONDS", "abc")
+
+        with pytest.raises(ValueError, match="positive integer"):
+            RiskLimits.from_env()
+
+    def test_build_approval_template_uses_configured_ttl(self, monkeypatch, valid_proposal):
+        monkeypatch.setenv("RISK_DECISION_TTL_SECONDS", "600")
+        gate = RiskGate(limits=RiskLimits.from_env())
+
+        before = datetime.now(timezone.utc)
+        decision = gate.build_approval_template(valid_proposal)
+        after = datetime.now(timezone.utc)
+
+        delta = decision.expires_at - before
+        assert timedelta(seconds=599) <= delta <= timedelta(seconds=601) + (after - before)
 
 
 class TestMaxLossRule:
