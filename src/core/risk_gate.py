@@ -45,6 +45,7 @@ class RiskLimits:
             max_consecutive_losses=int(os.getenv("MAX_CONSECUTIVE_LOSSES", "3")),
             min_risk_reward=float(os.getenv("MIN_RISK_REWARD", "1.5")),
             min_confidence=float(os.getenv("MIN_CONFIDENCE", "0.55")),
+            risk_decision_ttl_seconds=int(os.getenv("RISK_DECISION_TTL_SECONDS", "300")),
         )
 
 

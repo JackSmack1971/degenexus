@@ -2,6 +2,7 @@
 
 import math
 from src.models.signals import RiskDecisionType
+from src.core.risk_gate import RiskLimits
 
 
 def check_hard_rules(risk_gate, proposal, **overrides):
@@ -14,6 +15,22 @@ def check_hard_rules(risk_gate, proposal, **overrides):
     )
     defaults.update(overrides)
     return risk_gate.check_hard_rules(proposal, **defaults)
+
+
+class TestRiskLimitsFromEnv:
+    def test_risk_decision_ttl_seconds_reads_env_override(self, monkeypatch):
+        monkeypatch.setenv("RISK_DECISION_TTL_SECONDS", "42")
+
+        limits = RiskLimits.from_env()
+
+        assert limits.risk_decision_ttl_seconds == 42
+
+    def test_risk_decision_ttl_seconds_defaults_to_300_when_unset(self, monkeypatch):
+        monkeypatch.delenv("RISK_DECISION_TTL_SECONDS", raising=False)
+
+        limits = RiskLimits.from_env()
+
+        assert limits.risk_decision_ttl_seconds == 300
 
 
 class TestMaxLossRule:

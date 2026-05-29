@@ -1,5 +1,16 @@
 # DECISIONS
 
+## ADR-009 — Make risk_decision_ttl_seconds env-configurable via RISK_DECISION_TTL_SECONDS (codex/issue-139)
+
+**Date:** 2026-05-29
+**Issue:** #139
+**Context:** `RiskLimits.risk_decision_ttl_seconds` (default 300 s) controls the `ExecutionGate` approval window. `from_env()` read 6 other limits from env vars but silently omitted `risk_decision_ttl_seconds`, making it impossible to tune without source edits. All other limits were already env-configurable.
+**Decision:** Add `risk_decision_ttl_seconds=int(os.getenv("RISK_DECISION_TTL_SECONDS", "300")),` to `from_env()`. Default preserved at 300 s; operators can now override via env.
+**Alternatives rejected:** No change (leaves operational gap); field rename (breaks API).
+**Edge cases covered:** env override (42 s), env unset (300 s default).
+
+---
+
 ## ADR-001 — sys.modules injection as primary CI fix for ta-dependent tests (codex/issue-66)
 
 **Date:** 2026-05-27  
