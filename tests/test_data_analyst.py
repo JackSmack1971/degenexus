@@ -1,7 +1,6 @@
 """Tests for DataAnalystAgent signal parsing, fallback, and quality detection."""
 
 import pytest
-from unittest.mock import MagicMock
 from datetime import datetime, timezone, timedelta
 
 from src.agents.data_analyst import DataAnalystAgent
@@ -29,9 +28,9 @@ def _make_bars(n: int, symbol: str = "AAPL", source: str = "LIVE") -> list[OHLCV
     return bars
 
 
-def _make_agent():
+def _make_agent(mocker):
     """Create a DataAnalystAgent using the DI constructor (no __new__ workaround)."""
-    fake_feed = MagicMock()
+    fake_feed = mocker.MagicMock()
     fake_feed.fetch.return_value = []
     return DataAnalystAgent(feed=fake_feed, engine=IndicatorEngine())
 
@@ -49,32 +48,32 @@ VALID_RESPONSE = {
 
 
 class TestParseSignalHappyPath:
-    def test_returns_market_signal(self):
-        agent = _make_agent()
+    def test_returns_market_signal(self, mocker):
+        agent = _make_agent(mocker)
         sig = agent._parse_signal(VALID_RESPONSE, "AAPL", 150.0, {}, DataQuality.LIVE)
         assert isinstance(sig, MarketSignal)
         assert sig.symbol == "AAPL"
         assert sig.confidence == pytest.approx(0.72)
         assert sig.current_price == 150.0
 
-    def test_data_quality_live_preserved(self):
-        agent = _make_agent()
+    def test_data_quality_live_preserved(self, mocker):
+        agent = _make_agent(mocker)
         sig = agent._parse_signal(VALID_RESPONSE, "AAPL", 150.0, {}, DataQuality.LIVE)
         assert sig.data_quality == DataQuality.LIVE
 
-    def test_data_quality_synthetic_preserved(self):
-        agent = _make_agent()
+    def test_data_quality_synthetic_preserved(self, mocker):
+        agent = _make_agent(mocker)
         sig = agent._parse_signal(VALID_RESPONSE, "AAPL", 150.0, {}, DataQuality.SYNTHETIC)
         assert sig.data_quality == DataQuality.SYNTHETIC
 
-    def test_entry_zone_from_response(self):
-        agent = _make_agent()
+    def test_entry_zone_from_response(self, mocker):
+        agent = _make_agent(mocker)
         sig = agent._parse_signal(VALID_RESPONSE, "AAPL", 150.0, {}, DataQuality.LIVE)
         assert sig.entry_zone.low == pytest.approx(149.0)
         assert sig.entry_zone.high == pytest.approx(151.0)
 
-    def test_missing_entry_zone_defaults_to_current_price_band(self):
-        agent = _make_agent()
+    def test_missing_entry_zone_defaults_to_current_price_band(self, mocker):
+        agent = _make_agent(mocker)
         response = {**VALID_RESPONSE, "entry_zone": {}}
         sig = agent._parse_signal(response, "AAPL", 100.0, {}, DataQuality.LIVE)
         assert sig is not None
@@ -85,59 +84,59 @@ class TestParseSignalHappyPath:
 class TestDirectionTypeExplicit:
     """Regression for issue #68 — direction must be Direction enum in MarketSignal."""
 
-    def test_short_direction_str_produces_direction_enum(self):
+    def test_short_direction_str_produces_direction_enum(self, mocker):
         """'SHORT' string from LLM response must yield Direction.SHORT, not a bare str."""
-        agent = _make_agent()
+        agent = _make_agent(mocker)
         response = {**VALID_RESPONSE, "direction": "SHORT"}
         sig = agent._parse_signal(response, "AAPL", 150.0, {}, DataQuality.LIVE)
         assert sig is not None
         assert sig.direction == Direction.SHORT
 
-    def test_long_direction_lowercase_coerces_to_enum(self):
+    def test_long_direction_lowercase_coerces_to_enum(self, mocker):
         """Lowercase 'long' from LLM response must yield Direction.LONG after .upper()."""
-        agent = _make_agent()
+        agent = _make_agent(mocker)
         response = {**VALID_RESPONSE, "direction": "long"}
         sig = agent._parse_signal(response, "AAPL", 150.0, {}, DataQuality.LIVE)
         assert sig is not None
         assert sig.direction == Direction.LONG
 
-    def test_none_direction_returns_none_signal(self):
+    def test_none_direction_returns_none_signal(self, mocker):
         """direction=None → str(None).upper()='NONE' → invalid Direction → _parse_signal returns None."""
-        agent = _make_agent()
+        agent = _make_agent(mocker)
         response = {**VALID_RESPONSE, "direction": None}
         sig = agent._parse_signal(response, "AAPL", 150.0, {}, DataQuality.LIVE)
         assert sig is None
 
 
 class TestParseSignalInvalidInputs:
-    def test_invalid_direction_returns_none(self):
-        agent = _make_agent()
+    def test_invalid_direction_returns_none(self, mocker):
+        agent = _make_agent(mocker)
         response = {**VALID_RESPONSE, "direction": "BUY"}
         result = agent._parse_signal(response, "AAPL", 150.0, {}, DataQuality.LIVE)
         assert result is None
 
-    def test_invalid_trend_returns_none(self):
-        agent = _make_agent()
+    def test_invalid_trend_returns_none(self, mocker):
+        agent = _make_agent(mocker)
         response = {**VALID_RESPONSE, "trend": "SIDEWAYS"}
         result = agent._parse_signal(response, "AAPL", 150.0, {}, DataQuality.LIVE)
         assert result is None
 
-    def test_confidence_clamped_above_1(self):
-        agent = _make_agent()
+    def test_confidence_clamped_above_1(self, mocker):
+        agent = _make_agent(mocker)
         response = {**VALID_RESPONSE, "confidence": 5.0}
         sig = agent._parse_signal(response, "AAPL", 150.0, {}, DataQuality.LIVE)
         assert sig is not None
         assert sig.confidence == pytest.approx(1.0)
 
-    def test_confidence_clamped_below_0(self):
-        agent = _make_agent()
+    def test_confidence_clamped_below_0(self, mocker):
+        agent = _make_agent(mocker)
         response = {**VALID_RESPONSE, "confidence": -1.0}
         sig = agent._parse_signal(response, "AAPL", 150.0, {}, DataQuality.LIVE)
         assert sig is not None
         assert sig.confidence == pytest.approx(0.0)
 
-    def test_empty_response_dict_returns_none_or_defaults(self):
-        agent = _make_agent()
+    def test_empty_response_dict_returns_none_or_defaults(self, mocker):
+        agent = _make_agent(mocker)
         # Empty response uses defaults: direction=LONG, trend=NEUTRAL — should succeed
         result = agent._parse_signal({}, "AAPL", 150.0, {}, DataQuality.LIVE)
         assert result is not None
@@ -145,22 +144,22 @@ class TestParseSignalInvalidInputs:
 
 
 class TestFallback:
-    def test_fallback_returns_dict_with_low_confidence(self):
-        agent = _make_agent()
+    def test_fallback_returns_dict_with_low_confidence(self, mocker):
+        agent = _make_agent(mocker)
         result = agent._fallback("context")
         assert isinstance(result, dict)
         assert result["confidence"] == pytest.approx(0.45)
         assert result["direction"] == "LONG"
 
-    def test_fallback_entry_zone_is_zero(self):
-        agent = _make_agent()
+    def test_fallback_entry_zone_is_zero(self, mocker):
+        agent = _make_agent(mocker)
         result = agent._fallback("context")
         assert result["entry_zone"]["low"] == 0
         assert result["entry_zone"]["high"] == 0
 
-    def test_fallback_signal_produces_valid_market_signal_via_parse(self):
+    def test_fallback_signal_produces_valid_market_signal_via_parse(self, mocker):
         """Verify fallback dict + _parse_signal produces a usable (low-confidence) signal."""
-        agent = _make_agent()
+        agent = _make_agent(mocker)
         fb = agent._fallback("ctx")
         sig = agent._parse_signal(fb, "AAPL", 100.0, {}, DataQuality.LIVE)
         assert sig is not None
@@ -169,10 +168,10 @@ class TestFallback:
 
 
 class TestSyntheticQualityDetection:
-    def test_synthetic_bars_set_data_quality_synthetic(self):
+    def test_synthetic_bars_set_data_quality_synthetic(self, mocker):
         """Verify analyze() sets SYNTHETIC quality when any bar has source='SYNTHETIC'."""
         from src.data.market_feed import OHLCVBar
-        agent = _make_agent()
+        agent = _make_agent(mocker)
 
         ts = datetime.now(timezone.utc)
         synthetic_bars = [
@@ -189,12 +188,12 @@ class TestSyntheticQualityDetection:
             captured["data_quality"] = data_quality
             return None
 
-        agent.feed = MagicMock()
+        agent.feed = mocker.MagicMock()
         agent.feed.fetch.return_value = synthetic_bars
-        agent.engine = MagicMock()
+        agent.engine = mocker.MagicMock()
         agent.engine.compute_all.return_value = {}
-        agent._build_bar_summary = MagicMock(return_value="summary")
-        agent.call_llm = MagicMock(return_value=VALID_RESPONSE)
+        agent._build_bar_summary = mocker.MagicMock(return_value="summary")
+        agent.call_llm = mocker.MagicMock(return_value=VALID_RESPONSE)
         agent._parse_signal = fake_parse_signal
 
         agent.analyze("TEST")
@@ -204,8 +203,8 @@ class TestSyntheticQualityDetection:
 class TestDIConstructor:
     """Verify DI constructor replaces __new__ workaround — issue #69."""
 
-    def test_constructor_accepts_feed_kwarg(self):
-        fake_feed = MagicMock()
+    def test_constructor_accepts_feed_kwarg(self, mocker):
+        fake_feed = mocker.MagicMock()
         agent = DataAnalystAgent(feed=fake_feed)
         assert agent.feed is fake_feed
 
@@ -219,8 +218,8 @@ class TestDIConstructor:
         assert agent.feed is not None
         assert agent.engine is not None
 
-    def test_performance_context_still_works(self):
-        fake_feed = MagicMock()
+    def test_performance_context_still_works(self, mocker):
+        fake_feed = mocker.MagicMock()
         agent = DataAnalystAgent("ctx123", feed=fake_feed)
         assert agent.performance_context == "ctx123"
 
@@ -228,73 +227,73 @@ class TestDIConstructor:
 class TestAnalyzeMethod:
     """Tests for analyze() — previously unreachable without DI (issue #69 coverage gap)."""
 
-    def test_analyze_with_sufficient_bars_returns_market_signal(self):
+    def test_analyze_with_sufficient_bars_returns_market_signal(self, mocker):
         """≥30 bars + valid LLM response → MarketSignal returned."""
         bars = _make_bars(35, source="LIVE")
-        fake_feed = MagicMock()
+        fake_feed = mocker.MagicMock()
         fake_feed.fetch.return_value = bars
-        fake_engine = MagicMock()
+        fake_engine = mocker.MagicMock()
         fake_engine.compute_all.return_value = {"rsi_14": 52.0}
 
         agent = DataAnalystAgent(feed=fake_feed, engine=fake_engine)
-        agent.call_llm = MagicMock(return_value=VALID_RESPONSE)
+        agent.call_llm = mocker.MagicMock(return_value=VALID_RESPONSE)
 
         result = agent.analyze("AAPL")
         assert isinstance(result, MarketSignal)
         assert result.symbol == "AAPL"
         assert result.data_quality == DataQuality.LIVE
 
-    def test_analyze_with_fewer_than_30_bars_returns_none(self):
+    def test_analyze_with_fewer_than_30_bars_returns_none(self, mocker):
         """<30 bars → logger.warning + return None (lines 42-43 of data_analyst.py)."""
         bars = _make_bars(20)
-        fake_feed = MagicMock()
+        fake_feed = mocker.MagicMock()
         fake_feed.fetch.return_value = bars
 
         agent = DataAnalystAgent(feed=fake_feed)
         result = agent.analyze("AAPL")
         assert result is None
 
-    def test_analyze_with_exactly_30_bars_boundary_proceeds(self):
+    def test_analyze_with_exactly_30_bars_boundary_proceeds(self, mocker):
         """BVA: exactly 30 bars is the minimum — should NOT trigger the <30 guard."""
         bars = _make_bars(30, source="LIVE")
-        fake_feed = MagicMock()
+        fake_feed = mocker.MagicMock()
         fake_feed.fetch.return_value = bars
-        fake_engine = MagicMock()
+        fake_engine = mocker.MagicMock()
         fake_engine.compute_all.return_value = {}
 
         agent = DataAnalystAgent(feed=fake_feed, engine=fake_engine)
-        agent.call_llm = MagicMock(return_value=VALID_RESPONSE)
+        agent.call_llm = mocker.MagicMock(return_value=VALID_RESPONSE)
 
         result = agent.analyze("AAPL")
         assert result is not None
 
-    def test_analyze_with_feed_exception_returns_none(self):
+    def test_analyze_with_feed_exception_returns_none(self, mocker):
         """feed.fetch() raises → outer except catches → returns None (lines 59-61)."""
-        fake_feed = MagicMock()
+        fake_feed = mocker.MagicMock()
         fake_feed.fetch.side_effect = RuntimeError("network error")
 
         agent = DataAnalystAgent(feed=fake_feed)
         result = agent.analyze("AAPL")
         assert result is None
 
-    def test_analyze_sets_synthetic_quality_on_synthetic_bars(self):
+    def test_analyze_sets_synthetic_quality_on_synthetic_bars(self, mocker):
         """Any bar with source='SYNTHETIC' → data_quality=DataQuality.SYNTHETIC."""
         bars = _make_bars(35, source="SYNTHETIC")
-        fake_feed = MagicMock()
+        fake_feed = mocker.MagicMock()
         fake_feed.fetch.return_value = bars
-        fake_engine = MagicMock()
+        fake_engine = mocker.MagicMock()
         fake_engine.compute_all.return_value = {}
 
         agent = DataAnalystAgent(feed=fake_feed, engine=fake_engine)
-        agent.call_llm = MagicMock(return_value=VALID_RESPONSE)
+        agent.call_llm = mocker.MagicMock(return_value=VALID_RESPONSE)
 
         result = agent.analyze("AAPL")
         assert result is not None
         assert result.data_quality == DataQuality.SYNTHETIC
 
-    def test_analyze_with_empty_bars_returns_none(self):
+    def test_analyze_with_empty_bars_returns_none(self, mocker):
         """Empty bar list (0 bars) → <30 guard → returns None."""
-        fake_feed = MagicMock()
+        fake_feed = mocker.MagicMock()
         fake_feed.fetch.return_value = []
 
         agent = DataAnalystAgent(feed=fake_feed)
@@ -338,18 +337,18 @@ class TestBuildBarSummary:
 class TestParseSignalEntryZoneNonDict:
     """Line 115 — entry_zone is not a dict → fallback to current_price band."""
 
-    def test_float_entry_zone_uses_price_band(self):
+    def test_float_entry_zone_uses_price_band(self, mocker):
         """LLM hallucination: entry_zone=150.0 (float, not dict) → band from current_price."""
-        agent = _make_agent()
+        agent = _make_agent(mocker)
         response = {**VALID_RESPONSE, "entry_zone": 150.0}
         sig = agent._parse_signal(response, "AAPL", 200.0, {}, DataQuality.LIVE)
         assert sig is not None
         assert sig.entry_zone.low == pytest.approx(200.0 * 0.995)
         assert sig.entry_zone.high == pytest.approx(200.0 * 1.005)
 
-    def test_list_entry_zone_uses_price_band(self):
+    def test_list_entry_zone_uses_price_band(self, mocker):
         """entry_zone=[149, 151] (list, not dict) → band from current_price."""
-        agent = _make_agent()
+        agent = _make_agent(mocker)
         response = {**VALID_RESPONSE, "entry_zone": [149.0, 151.0]}
         sig = agent._parse_signal(response, "AAPL", 200.0, {}, DataQuality.LIVE)
         assert sig is not None

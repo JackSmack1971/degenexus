@@ -146,7 +146,7 @@ class TradingOrchestrator:
 
         open_count = self.portfolio.open_positions_count
         selected = []
-        for signal in signals[:3]:
+        for signal in signals[:2]:
             if signal.data_quality.value != "LIVE":
                 self._emit(
                     "CEO_REJECTED_SIGNAL",
@@ -254,7 +254,9 @@ class TradingOrchestrator:
 
         # Phase 7: Execution
         current_price = signal.current_price
-        trade, fill, error = self.execution.execute(proposal, risk_decision, current_price)
+        trade, fill, error = self.execution.execute(
+            proposal, risk_decision, current_price, signal_confidence=signal.confidence
+        )
 
         if error or trade is None:
             self._emit("EXECUTION_FAILED", "EXECUTION", f"{signal.symbol}: {error}")

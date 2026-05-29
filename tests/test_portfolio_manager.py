@@ -1,7 +1,6 @@
 """Tests for PortfolioManagerAgent partial take-profit accounting and position tracking."""
 
 import uuid
-from unittest.mock import MagicMock
 
 from src.agents.portfolio_manager import PortfolioManagerAgent
 from src.core.portfolio import Portfolio
@@ -100,8 +99,8 @@ def test_monitor_cycle_updates_each_duplicate_symbol_position():
 class TestInitWithTradeStore:
     """Line 36 -- _partial_tp_flags seeded from DB when trade_store is provided."""
 
-    def test_partial_tp_flags_seeded_from_db(self):
-        ts = MagicMock()
+    def test_partial_tp_flags_seeded_from_db(self, mocker):
+        ts = mocker.MagicMock()
         ts.get_partially_closed_trade_ids.return_value = ["abc", "def"]
         agent = PortfolioManagerAgent(
             portfolio=Portfolio(starting_capital=1_000.0),
@@ -352,9 +351,9 @@ class TestCloseTradeConsecutiveLoss:
 class TestExecutePartialTPOneShareGuard:
     """Lines 149-153 -- 1-share trade skips partial TP execution."""
 
-    def test_one_share_guard_returns_early(self):
+    def test_one_share_guard_returns_early(self, mocker):
         portfolio = Portfolio(starting_capital=10_000.0)
-        ts = MagicMock()
+        ts = mocker.MagicMock()
         agent = PortfolioManagerAgent(
             portfolio=portfolio,
             trade_store=ts,
@@ -369,10 +368,10 @@ class TestExecutePartialTPOneShareGuard:
         assert trade.state == TradeState.OPEN
         ts.upsert_trade.assert_not_called()
 
-    def test_two_share_trade_executes_partial_tp(self):
+    def test_two_share_trade_executes_partial_tp(self, mocker):
         """BVA: 2-share boundary -- shares_to_close=1 < 2, so partial TP proceeds."""
         portfolio = Portfolio(starting_capital=10_000.0)
-        ts = MagicMock()
+        ts = mocker.MagicMock()
         agent = PortfolioManagerAgent(
             portfolio=portfolio,
             trade_store=ts,
@@ -391,9 +390,9 @@ class TestExecutePartialTPOneShareGuard:
 class TestExecutePartialTPStoreUpsert:
     """Line 166 -- upsert_trade called when trade_store is provided."""
 
-    def test_upsert_trade_called_after_partial_tp(self):
+    def test_upsert_trade_called_after_partial_tp(self, mocker):
         portfolio = Portfolio(starting_capital=50_000.0)
-        ts = MagicMock()
+        ts = mocker.MagicMock()
         agent = PortfolioManagerAgent(
             portfolio=portfolio,
             trade_store=ts,

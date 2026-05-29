@@ -185,6 +185,43 @@ def test_execute_clamps_minimum_shares_after_reduction(valid_proposal, valid_ris
     assert trade.shares == 1
 
 
+def test_execute_high_confidence_near_price_uses_market_order(valid_proposal, valid_risk_decision):
+    """signal_confidence >= 0.85 + price_distance < 0.002 must produce a MARKET order."""
+    agent = ExecutionAgent()
+    current_price = valid_proposal.entry_price * 1.001  # 0.1% away — within 0.002 threshold
+
+    trade, fill, error = agent.execute(
+        proposal=valid_proposal,
+        risk_decision=valid_risk_decision,
+        current_price=current_price,
+        signal_confidence=0.9,
+    )
+
+    assert error is None
+    assert trade is not None
+    assert fill is not None
+    assert trade.order_type.value == "MARKET"
+    assert fill.order_type.value == "MARKET"
+
+
+def test_execute_default_confidence_produces_limit_order(valid_proposal, valid_risk_decision):
+    """Default signal_confidence (0.7) must always produce a LIMIT order regardless of distance."""
+    agent = ExecutionAgent()
+    current_price = valid_proposal.entry_price * 1.001  # near price — only confidence fails threshold
+
+    trade, fill, error = agent.execute(
+        proposal=valid_proposal,
+        risk_decision=valid_risk_decision,
+        current_price=current_price,
+    )
+
+    assert error is None
+    assert trade is not None
+    assert fill is not None
+    assert trade.order_type.value == "LIMIT"
+    assert fill.order_type.value == "LIMIT"
+
+
 def test_execute_with_none_risk_decision_returns_block_reason(valid_proposal):
     """risk_decision=None must be caught by gate.validate(), not reach _apply_conditions."""
     agent = ExecutionAgent()

@@ -45,13 +45,14 @@ class CEOAgent(BaseAgent):
         open_positions_count: int,
     ) -> str:
         """Evaluate signal quality. Returns 'PROCEED' or 'ABORT'."""
+        safe_symbol = self._sanitize_external_text(signal.symbol)
         safe_reasoning = self._sanitize_external_text(signal.reasoning)
         safe_market_context = self._sanitize_external_text(signal.market_context)
         user_msg = f"""Triage this analyst signal:
 
 SIGNAL:
   {self.TRUST_BOUNDARY_NOTICE}
-  Symbol: {signal.symbol}
+  Symbol: {safe_symbol}
   Direction: {signal.direction}
   Trend: {signal.trend.value}
   Data Quality: {signal.data_quality.value}

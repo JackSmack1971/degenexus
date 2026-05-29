@@ -1,7 +1,6 @@
 """Tests for quant proposal validation."""
 
 import pytest
-from unittest.mock import MagicMock
 from pydantic import ValidationError
 
 from src.agents.quant_agent import QuantAgent
@@ -172,7 +171,7 @@ class TestFallbackProposal:
 
 class TestDesignProposalPath:
 
-    def test_design_proposal_success_returns_trade_proposal(self, valid_signal):
+    def test_design_proposal_success_returns_trade_proposal(self, valid_signal, mocker):
         """Lines 58-61: LLM call succeeds → _parse_proposal returns TradeProposal."""
         agent = QuantAgent()
         mock_response = {
@@ -188,25 +187,25 @@ class TestDesignProposalPath:
             "portfolio_exposure_pct": 0.075,
             "reasoning": "Kelly sizing test",
         }
-        agent.call_llm = MagicMock(return_value=mock_response)
+        agent.call_llm = mocker.MagicMock(return_value=mock_response)
         result = agent.design_proposal(valid_signal, portfolio_value=10_000.0, available_cash=5_000.0)
         assert result is not None
         assert result.entry_price == pytest.approx(150.0)
         agent.call_llm.assert_called_once()
 
-    def test_design_proposal_exception_uses_fallback(self, valid_signal):
+    def test_design_proposal_exception_uses_fallback(self, valid_signal, mocker):
         """Lines 62-66: exception in try block → _fallback_proposal returned."""
         agent = QuantAgent()
-        agent.call_llm = MagicMock(side_effect=RuntimeError("LLM exploded"))
+        agent.call_llm = mocker.MagicMock(side_effect=RuntimeError("LLM exploded"))
         result = agent.design_proposal(valid_signal, portfolio_value=10_000.0, available_cash=5_000.0)
         assert result is not None
 
-    def test_design_proposal_zero_portfolio_falls_back_to_none(self):
+    def test_design_proposal_zero_portfolio_falls_back_to_none(self, mocker):
         """Lines 62-66: zero portfolio_value → fallback_proposal returns None (price=0 guard)."""
         sig = _make_signal("LONG", price=100.0)
         sig.current_price = 0.0
         agent = QuantAgent()
-        agent.call_llm = MagicMock(side_effect=RuntimeError("LLM fail"))
+        agent.call_llm = mocker.MagicMock(side_effect=RuntimeError("LLM fail"))
         result = agent.design_proposal(sig, portfolio_value=0.0, available_cash=0.0)
         assert result is None
 
@@ -276,7 +275,7 @@ class TestQuantFallbackMethod:
     def test_fallback_called_when_client_none(self, valid_signal):
         """call_llm with client=None → _fallback() dict is returned by call_llm."""
         agent = QuantAgent()
-        # _TestAgent bypasses init; QuantAgent() has _client=None (no API key)
+        # QuantAgent() has _client=None (no API key in test env)
         assert agent._client is None
         raw = agent.call_llm("sys", "ctx")
         assert raw["entry_type"] == "LIMIT"

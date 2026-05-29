@@ -3,7 +3,6 @@
 import logging
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -59,42 +58,42 @@ class TestValidateModel:
 # ---------------------------------------------------------------------------
 
 class TestOpenRouterClientConstruction:
-    def _make_client(self, model=DEFAULT_MODEL, api_key="sk-or-test"):
-        with patch("src.core.openrouter_client.OpenAI") as mock_openai_cls:
-            client = OpenRouterClient(api_key=api_key, model=model)
-            mock_openai_cls.assert_called_once()
-            return client, mock_openai_cls
+    def _make_client(self, mocker, model=DEFAULT_MODEL, api_key="sk-or-test"):
+        mock_openai_cls = mocker.patch("src.core.openrouter_client.OpenAI")
+        client = OpenRouterClient(api_key=api_key, model=model)
+        mock_openai_cls.assert_called_once()
+        return client, mock_openai_cls
 
-    def test_valid_model_constructs(self):
-        client, _ = self._make_client("meta-llama/llama-3.3-70b-instruct")
+    def test_valid_model_constructs(self, mocker):
+        client, _ = self._make_client(mocker, "meta-llama/llama-3.3-70b-instruct")
         assert client.model == "meta-llama/llama-3.3-70b-instruct"
 
     def test_invalid_model_raises_before_openai_init(self):
         with pytest.raises(OpenRouterError, match="not in the approved free-model allowlist"):
             OpenRouterClient(api_key="sk-or-test", model="openai/gpt-4o")
 
-    def test_missing_openai_package_raises(self):
-        with patch("src.core.openrouter_client.OpenAI", None):
-            with pytest.raises(OpenRouterError, match="openai package not installed"):
-                OpenRouterClient(api_key="sk-or-test", model=DEFAULT_MODEL)
-
-    def test_base_url_is_openrouter(self):
-        with patch("src.core.openrouter_client.OpenAI") as mock_openai_cls:
+    def test_missing_openai_package_raises(self, mocker):
+        mocker.patch("src.core.openrouter_client.OpenAI", None)
+        with pytest.raises(OpenRouterError, match="openai package not installed"):
             OpenRouterClient(api_key="sk-or-test", model=DEFAULT_MODEL)
-            call_kwargs = mock_openai_cls.call_args.kwargs
-            assert call_kwargs["base_url"] == "https://openrouter.ai/api/v1"
 
-    def test_api_key_passed_to_openai(self):
-        with patch("src.core.openrouter_client.OpenAI") as mock_openai_cls:
-            OpenRouterClient(api_key="sk-or-secret", model=DEFAULT_MODEL)
-            call_kwargs = mock_openai_cls.call_args.kwargs
-            assert call_kwargs["api_key"] == "sk-or-secret"
+    def test_base_url_is_openrouter(self, mocker):
+        mock_openai_cls = mocker.patch("src.core.openrouter_client.OpenAI")
+        OpenRouterClient(api_key="sk-or-test", model=DEFAULT_MODEL)
+        call_kwargs = mock_openai_cls.call_args.kwargs
+        assert call_kwargs["base_url"] == "https://openrouter.ai/api/v1"
 
-    def test_timeout_passed_to_openai(self):
-        with patch("src.core.openrouter_client.OpenAI") as mock_openai_cls:
-            OpenRouterClient(api_key="sk-or-secret", model=DEFAULT_MODEL, timeout=12.5)
-            call_kwargs = mock_openai_cls.call_args.kwargs
-            assert call_kwargs["timeout"] == 12.5
+    def test_api_key_passed_to_openai(self, mocker):
+        mock_openai_cls = mocker.patch("src.core.openrouter_client.OpenAI")
+        OpenRouterClient(api_key="sk-or-secret", model=DEFAULT_MODEL)
+        call_kwargs = mock_openai_cls.call_args.kwargs
+        assert call_kwargs["api_key"] == "sk-or-secret"
+
+    def test_timeout_passed_to_openai(self, mocker):
+        mock_openai_cls = mocker.patch("src.core.openrouter_client.OpenAI")
+        OpenRouterClient(api_key="sk-or-secret", model=DEFAULT_MODEL, timeout=12.5)
+        call_kwargs = mock_openai_cls.call_args.kwargs
+        assert call_kwargs["timeout"] == 12.5
 
 
 # ---------------------------------------------------------------------------
@@ -102,49 +101,48 @@ class TestOpenRouterClientConstruction:
 # ---------------------------------------------------------------------------
 
 class TestOpenRouterClientChat:
-    def _make_client_with_mock_response(self, content: str):
-        mock_message = MagicMock()
+    def _make_client_with_mock_response(self, mocker, content: str):
+        mock_message = mocker.MagicMock()
         mock_message.content = content
-        mock_choice = MagicMock()
+        mock_choice = mocker.MagicMock()
         mock_choice.message = mock_message
-        mock_response = MagicMock()
+        mock_response = mocker.MagicMock()
         mock_response.choices = [mock_choice]
 
-        with patch("src.core.openrouter_client.OpenAI") as mock_openai_cls:
-            mock_openai_instance = mock_openai_cls.return_value
-            mock_openai_instance.chat.completions.create.return_value = mock_response
-            client = OpenRouterClient(api_key="sk-or-test", model=DEFAULT_MODEL)
-        # client._client is the mock instance; patch is exited but mock_openai_instance still works
+        mock_openai_cls = mocker.patch("src.core.openrouter_client.OpenAI")
+        mock_openai_instance = mock_openai_cls.return_value
+        mock_openai_instance.chat.completions.create.return_value = mock_response
+        client = OpenRouterClient(api_key="sk-or-test", model=DEFAULT_MODEL)
         return client, mock_openai_instance
 
-    def test_chat_returns_response_text(self):
-        client, mock_instance = self._make_client_with_mock_response('{"signal": "LONG"}')
+    def test_chat_returns_response_text(self, mocker):
+        client, mock_instance = self._make_client_with_mock_response(mocker, '{"signal": "LONG"}')
         result = client.chat(system_prompt="You are a trader", user_message="Analyse AAPL")
         assert result == '{"signal": "LONG"}'
 
-    def test_chat_passes_system_and_user_as_messages(self):
-        client, mock_instance = self._make_client_with_mock_response("ok")
+    def test_chat_passes_system_and_user_as_messages(self, mocker):
+        client, mock_instance = self._make_client_with_mock_response(mocker, "ok")
         client.chat(system_prompt="sys", user_message="usr")
         call_kwargs = mock_instance.chat.completions.create.call_args.kwargs
         messages = call_kwargs["messages"]
         assert messages[0] == {"role": "system", "content": "sys"}
         assert messages[1] == {"role": "user", "content": "usr"}
 
-    def test_chat_passes_model_id(self):
-        client, mock_instance = self._make_client_with_mock_response("ok")
+    def test_chat_passes_model_id(self, mocker):
+        client, mock_instance = self._make_client_with_mock_response(mocker, "ok")
         client.chat(system_prompt="sys", user_message="usr")
         call_kwargs = mock_instance.chat.completions.create.call_args.kwargs
         assert call_kwargs["model"] == DEFAULT_MODEL
 
-    def test_chat_sends_title_header(self):
-        client, mock_instance = self._make_client_with_mock_response("ok")
+    def test_chat_sends_title_header(self, mocker):
+        client, mock_instance = self._make_client_with_mock_response(mocker, "ok")
         client.chat(system_prompt="sys", user_message="usr")
         call_kwargs = mock_instance.chat.completions.create.call_args.kwargs
         headers = call_kwargs.get("extra_headers", {})
         assert "X-OpenRouter-Title" in headers
 
-    def test_chat_returns_empty_string_for_none_content(self):
-        client, mock_instance = self._make_client_with_mock_response(None)
+    def test_chat_returns_empty_string_for_none_content(self, mocker):
+        client, mock_instance = self._make_client_with_mock_response(mocker, None)
         result = client.chat(system_prompt="sys", user_message="usr")
         assert result == ""
 
@@ -154,7 +152,7 @@ class TestOpenRouterClientChat:
 # ---------------------------------------------------------------------------
 
 class TestBaseAgentProviderSwitching:
-    def test_openrouter_provider_selected_via_env(self, monkeypatch):
+    def test_openrouter_provider_selected_via_env(self, monkeypatch, mocker):
         monkeypatch.setenv("LLM_PROVIDER", "openrouter")
         monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
         monkeypatch.setenv("OPENROUTER_MODEL", DEFAULT_MODEL)
@@ -163,34 +161,34 @@ class TestBaseAgentProviderSwitching:
         import src.core.openrouter_client as or_mod
         import src.agents.base_agent as ba_mod
 
-        with patch.object(or_mod, "OpenAI") as mock_openai_cls:
-            # Force re-init by instantiating a fresh agent class
-            class DummyAgent(ba_mod.BaseAgent):
-                def _fallback(self, context):
-                    return {}
+        mock_openai_cls = mocker.patch.object(or_mod, "OpenAI")
 
-            agent = DummyAgent(agent_id="TEST")
-            assert agent._provider == "openrouter"
-            assert agent._llm_timeout_seconds == 12.5
-            assert mock_openai_cls.call_args.kwargs["timeout"] == 12.5
+        class DummyAgent(ba_mod.BaseAgent):
+            def _fallback(self, context):
+                return {}
 
-    def test_anthropic_provider_is_default(self, monkeypatch):
+        agent = DummyAgent(agent_id="TEST")
+        assert agent._provider == "openrouter"
+        assert agent._llm_timeout_seconds == 12.5
+        assert mock_openai_cls.call_args.kwargs["timeout"] == 12.5
+
+    def test_anthropic_provider_is_default(self, monkeypatch, mocker):
         pytest.importorskip("anthropic")
         monkeypatch.delenv("LLM_PROVIDER", raising=False)
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
         monkeypatch.setenv("LLM_TIMEOUT_SECONDS", "9")
 
-        with patch("anthropic.Anthropic") as mock_anthropic:
-            from src.agents.base_agent import BaseAgent
+        mock_anthropic = mocker.patch("anthropic.Anthropic")
+        from src.agents.base_agent import BaseAgent
 
-            class DummyAgent(BaseAgent):
-                def _fallback(self, context):
-                    return {}
+        class DummyAgent(BaseAgent):
+            def _fallback(self, context):
+                return {}
 
-            agent = DummyAgent(agent_id="TEST")
-            assert agent._provider == "anthropic"
-            assert agent._llm_timeout_seconds == 9.0
-            assert mock_anthropic.call_args.kwargs["timeout"] == 9.0
+        agent = DummyAgent(agent_id="TEST")
+        assert agent._provider == "anthropic"
+        assert agent._llm_timeout_seconds == 9.0
+        assert mock_anthropic.call_args.kwargs["timeout"] == 9.0
 
     def test_missing_openrouter_key_falls_back(self, monkeypatch):
         monkeypatch.setenv("LLM_PROVIDER", "openrouter")
@@ -206,7 +204,7 @@ class TestBaseAgentProviderSwitching:
         assert agent._provider == "fallback"
         assert agent._client is None
 
-    def test_timeout_error_retries_then_falls_back(self, monkeypatch, caplog):
+    def test_timeout_error_retries_then_falls_back(self, monkeypatch, mocker, caplog):
         monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
         monkeypatch.setenv("OPENROUTER_MODEL", DEFAULT_MODEL)
         monkeypatch.setenv("LLM_PROVIDER", "openrouter")
@@ -217,9 +215,9 @@ class TestBaseAgentProviderSwitching:
             def _fallback(self, context):
                 return {"fallback": True}
 
-        with patch("src.core.openrouter_client.OpenAI"):
-            agent = DummyAgent(agent_id="TEST")
-        agent._raw_llm_call = MagicMock(side_effect=TimeoutError("request timed out"))
+        mocker.patch("src.core.openrouter_client.OpenAI")
+        agent = DummyAgent(agent_id="TEST")
+        agent._raw_llm_call = mocker.MagicMock(side_effect=TimeoutError("request timed out"))
 
         with caplog.at_level(logging.WARNING):
             response = agent.call_llm("sys", "user")
